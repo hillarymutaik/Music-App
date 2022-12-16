@@ -10,9 +10,9 @@ An Open-Source Music Player App for all your needs!
 
 ### Don't forget to :star: the repo
 
-[![GitHub stars](https://img.shields.io/github/stars/Sangwan5688/BlackHole.svg?style=social&label=Star)](https://github.com//Sangwan5688/BlackHole) ![GitHub forks](https://img.shields.io/github/forks/Sangwan5688/BlackHole.svg?style=social&label=Forks) ![GitHub followers](https://img.shields.io/github/followers/Sangwan5688.svg?style=social&label=Follow)
+<!-- [![GitHub stars](https://img.shields.io/github/stars/Sangwan5688/BlackHole.svg?style=social&label=Star)](https://github.com//Sangwan5688/BlackHole) ![GitHub forks](https://img.shields.io/github/forks/Sangwan5688/BlackHole.svg?style=social&label=Forks) ![GitHub followers](https://img.shields.io/github/followers/Sangwan5688.svg?style=social&label=Follow) -->
 
-## Download
+<!-- ## Download
 
 [<img src="https://gitlab.com/IzzyOnDroid/repo/-/raw/master/assets/IzzyOnDroid.png"
      alt="Get it on IzzyDroid"
@@ -28,7 +28,7 @@ An Open-Source Music Player App for all your needs!
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 [<img src="https://img.shields.io/badge/Telegram-2CA5E0?logo=telegram&logoColor=white"
      alt="Join Telegram Channel"
-     height="60">](https://t.me/blackhole_official)
+     height="60">](https://t.me/blackhole_official) -->
 
 ## Translations
 
@@ -109,7 +109,7 @@ how to obtain the original software, should clearly STATE ALL CHANGES made and s
 Use of this software under any "non-free" license is NOT permitted.
 ```
 
-See the [GNU General Public License](https://github.com/Sangwan5688/BlackHole/blob/main/LICENSE) for more details.
+See the [GNU General Public License](https://github.com/hillarymutaik/MusicApp/blob/main/LICENSE) for more details.
 
 ## Building from Source
 
@@ -117,7 +117,7 @@ See the [GNU General Public License](https://github.com/Sangwan5688/BlackHole/bl
 2. Fetch latest source code from master branch.
 
 ```
-git clone https://github.com/Sangwan5688/BlackHole.git
+git clone https://github.com/hillarymutaik/music_app.git
 ```
 
 3. Run the app with Android Studio or VS Code. Or the command line:
@@ -127,22 +127,4 @@ flutter pub get
 flutter run
 ```
 
-## Contribute
 
-Contributions are welcome. Please read our [contributing guidelines](https://github.com/Sangwan5688/BlackHole/blob/main/CONTRIBUTING.md) before contributing.
-
-## Facing any Issue?
-
-Have a look at some [common Issues](https://github.com/Sangwan5688/BlackHole/wiki/Common-Issues) that you might face. If your problem is not there, feel free to open an Issue :)
-
-## Want to test Beta Versions? Need help??
-
-You can join our [Telegram Channel](https://t.me/blackhole_official) or [Telegram Group](https://t.me/joinchat/fHDC1AWnOhw0ZmI9), if you have any query, or need help with something as well as to get beta updates of the project.
-
-## Liked my work?
-
-<a href="https://www.buymeacoffee.com/ankitsangwan" target="_blank"><img src="https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png" alt="Buy Me A Coffee" style="height: 41px !important;width: 174px !important;box-shadow: 0px 3px 2px 0px rgba(190, 190, 190, 0.5) !important;-webkit-box-shadow: 0px 3px 2px 0px rgba(190, 190, 190, 0.5) !important;" ></a>
-
-## What's New
-
-To read full changelog visit the [wiki page](https://github.com/Sangwan5688/BlackHole/wiki/Changelog)
