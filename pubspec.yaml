@@ -69,8 +69,8 @@ flutter:
     - assets/
 
 msix_config:
-  display_name: BlackHole
-  publisher_display_name: Ankit Sangwan
+  display_name: Mutai Music
+  publisher_display_name: Hillary Mutai
   identity_name: com.shadow.blackhole
   icons_background_color: transparent
   logo_path: assets/ic_launcher.png

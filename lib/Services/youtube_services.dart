@@ -47,10 +47,7 @@ class YouTubeServices {
   }
 
   Future<Map<String, List>> getMusicHome() async {
-    final Uri link = Uri.https(
-      searchAuthority,
-      paths['music'].toString(),
-    );
+    final Uri link = Uri.https(searchAuthority, paths['music'].toString());
     try {
       final Response response = await get(link);
       if (response.statusCode != 200) {
