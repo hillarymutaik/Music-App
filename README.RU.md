@@ -33,12 +33,15 @@
 
 - [English :uk:](/README.md)
 - [Spanish :es:](/README.ES.md)
+- [Japanese :jp:](/README.JA.md)
+- [Belarusian :belarus:](/README.BE.md)
+- [Indonesian :indonesia:](/README.ID.md)
 
 спасибо [Nikita](https://github.com/TireX228) за этот перевод
 
 ## Особенности
 
-* Лучшее качество потокового воспроизведения (320кбит/с aac)
+* Высокое качество потоковой передачи (320кбит/с AAC)
 * Поиск песен, альбомов, исполнителей и плейлистов
 * Продвигаемые плейлисты с указанием языка
 * Трендовые песни

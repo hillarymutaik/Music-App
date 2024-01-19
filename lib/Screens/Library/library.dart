@@ -14,11 +14,12 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with BlackHole.  If not, see <http://www.gnu.org/licenses/>.
  * 
- * Copyright (c) 2021-2022, Ankit Sangwan
+ * Copyright (c) 2021-2023, Ankit Sangwan
  */
 
 import 'dart:io';
 
+import 'package:blackhole/CustomWidgets/drawer.dart';
 import 'package:blackhole/Screens/Library/liked.dart';
 import 'package:blackhole/Screens/LocalMusic/downed_songs.dart';
 import 'package:blackhole/Screens/LocalMusic/downed_songs_desktop.dart';
@@ -36,8 +37,8 @@ class LibraryPage extends StatefulWidget {
 class _LibraryPageState extends State<LibraryPage> {
   @override
   Widget build(BuildContext context) {
-    final double screenWidth = MediaQuery.of(context).size.width;
-    final bool rotated = MediaQuery.of(context).size.height < screenWidth;
+    final double screenWidth = MediaQuery.sizeOf(context).width;
+    final bool rotated = MediaQuery.sizeOf(context).height < screenWidth;
     return ListView(
       physics: const BouncingScrollPhysics(),
       children: [
@@ -52,26 +53,7 @@ class _LibraryPageState extends State<LibraryPage> {
           backgroundColor: Colors.transparent,
           elevation: 0,
           automaticallyImplyLeading: false,
-          leading: (rotated && screenWidth < 1050)
-              ? null
-              : Builder(
-                  builder: (BuildContext context) {
-                    return Transform.rotate(
-                      angle: 22 / 7 * 2,
-                      child: IconButton(
-                        color: Theme.of(context).iconTheme.color,
-                        icon: const Icon(
-                          Icons.horizontal_split_rounded,
-                        ),
-                        onPressed: () {
-                          Scaffold.of(context).openDrawer();
-                        },
-                        tooltip: MaterialLocalizations.of(context)
-                            .openAppDrawerTooltip,
-                      ),
-                    );
-                  },
-                ),
+          leading: rotated ? null : homeDrawer(context: context),
         ),
         LibraryTile(
           title: AppLocalizations.of(context)!.nowPlaying,
@@ -102,23 +84,23 @@ class _LibraryPageState extends State<LibraryPage> {
             );
           },
         ),
-        if (!Platform.isIOS)
-          LibraryTile(
-            title: AppLocalizations.of(context)!.myMusic,
-            icon: MdiIcons.folderMusic,
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => (Platform.isWindows || Platform.isLinux)
-                      ? const DownloadedSongsDesktop()
-                      : const DownloadedSongs(
-                          showPlaylists: true,
-                        ),
-                ),
-              );
-            },
-          ),
+        LibraryTile(
+          title: AppLocalizations.of(context)!.myMusic,
+          icon: MdiIcons.folderMusic,
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) =>
+                    (Platform.isWindows || Platform.isLinux || Platform.isMacOS)
+                        ? const DownloadedSongsDesktop()
+                        : const DownloadedSongs(
+                            showPlaylists: true,
+                          ),
+              ),
+            );
+          },
+        ),
         LibraryTile(
           title: AppLocalizations.of(context)!.downs,
           icon: Icons.download_done_rounded,
@@ -133,6 +115,13 @@ class _LibraryPageState extends State<LibraryPage> {
             Navigator.pushNamed(context, '/playlists');
           },
         ),
+        LibraryTile(
+          title: AppLocalizations.of(context)!.stats,
+          icon: Icons.auto_graph_rounded,
+          onTap: () {
+            Navigator.pushNamed(context, '/stats');
+          },
+        ),
       ],
     );
   }
@@ -144,9 +133,11 @@ class LibraryTile extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.onTap,
+    this.subtitle,
   });
 
   final String title;
+  final String? subtitle;
   final IconData icon;
   final Function() onTap;
 
@@ -159,6 +150,14 @@ class LibraryTile extends StatelessWidget {
           color: Theme.of(context).iconTheme.color,
         ),
       ),
+      subtitle: subtitle != null
+          ? Text(
+              subtitle!,
+              style: TextStyle(
+                color: Theme.of(context).iconTheme.color,
+              ),
+            )
+          : null,
       leading: Icon(
         icon,
         color: Theme.of(context).iconTheme.color,

@@ -14,7 +14,7 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with BlackHole.  If not, see <http://www.gnu.org/licenses/>.
  * 
- * Copyright (c) 2021-2022, Ankit Sangwan
+ * Copyright (c) 2021-2023, Ankit Sangwan
  */
 
 import 'dart:math';
@@ -61,7 +61,7 @@ class _EqualizerState extends State<Equalizer> {
             ),
             if (enabled)
               SizedBox(
-                height: MediaQuery.of(context).size.height / 2,
+                height: MediaQuery.sizeOf(context).height / 2,
                 child: EqualizerControls(
                   audioHandler: audioHandler,
                 ),
@@ -99,7 +99,7 @@ class _EqualizerControlsState extends State<EqualizerControls> {
         if (data == null) return const SizedBox();
         return Row(
           children: [
-            for (final band in data['bands'])
+            for (final band in data['bands'] as List<Map>)
               Expanded(
                 child: Column(
                   children: [
@@ -150,6 +150,7 @@ class _VerticalSliderState extends State<VerticalSlider> {
   double? sliderValue;
 
   void setGain(int bandIndex, double gain) {
+    Hive.box('settings').put('equalizerBand$bandIndex', gain);
     widget.audioHandler
         .customAction('setBandGain', {'band': bandIndex, 'gain': gain});
   }

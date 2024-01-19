@@ -644,5 +644,9 @@
   "useBlurForNowPlayingSub": "Rozmycie z mniejszą Przezroczystością będzie używane jako Tło Sekcji Teraz Odtwarzane",
   "@useBlurForNowPlayingSub": {},
   "willPlayNext": "Odtworzy Następny",
-  "@willPlayNext": {}
+  "@willPlayNext": {},
+  "cantFind": "Nie możesz znaleźć tego czego szukasz? ",
+  "@cantFind": {},
+  "blacklistHomeSections": "Dodaj tę sekcję do czarnej listy",
+  "@blacklistHomeSections": {}
 }

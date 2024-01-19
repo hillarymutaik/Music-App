@@ -14,14 +14,18 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with BlackHole.  If not, see <http://www.gnu.org/licenses/>.
  * 
- * Copyright (c) 2021-2022, Ankit Sangwan
+ * Copyright (c) 2021-2023, Ankit Sangwan
  */
 
 import 'package:flutter/material.dart';
 
 class HoverBox extends StatefulWidget {
   final Widget? child;
-  final Widget Function(BuildContext, bool, Widget?) builder;
+  final Widget Function({
+    required BuildContext context,
+    required bool isHover,
+    Widget? child,
+  }) builder;
   const HoverBox({
     super.key,
     required this.child,
@@ -56,7 +60,11 @@ class _HoverBox extends State<HoverBox> {
           bool isHover,
           Widget? child,
         ) {
-          return widget.builder(context, isHover, child);
+          return widget.builder(
+            context: context,
+            isHover: isHover,
+            child: child,
+          );
         },
       ),
     );

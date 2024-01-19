@@ -14,7 +14,7 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with BlackHole.  If not, see <http://www.gnu.org/licenses/>.
  * 
- * Copyright (c) 2021-2022, Ankit Sangwan
+ * Copyright (c) 2021-2023, Ankit Sangwan
  */
 
 import 'package:flutter/material.dart';
@@ -318,20 +318,23 @@ class MyTheme with ChangeNotifier {
   void saveTheme(String themeName) {
     final userThemes =
         Hive.box('settings').get('userThemes', defaultValue: {}) as Map;
-    Hive.box('settings').put('userThemes', {
-      ...userThemes,
-      themeName: {
-        'isDark': _isDark,
-        'useSystemTheme': _useSystemTheme,
-        'accentColor': accentColor,
-        'canvasColor': canvasColor,
-        'cardColor': cardColor,
-        'backGrad': backGrad,
-        'cardGrad': cardGrad,
-        'bottomGrad': bottomGrad,
-        'colorHue': colorHue,
-      }
-    });
+    Hive.box('settings').put(
+      'userThemes',
+      {
+        ...userThemes,
+        themeName: {
+          'isDark': _isDark,
+          'useSystemTheme': _useSystemTheme,
+          'accentColor': accentColor,
+          'canvasColor': canvasColor,
+          'cardColor': cardColor,
+          'backGrad': backGrad,
+          'cardGrad': cardGrad,
+          'bottomGrad': bottomGrad,
+          'colorHue': colorHue,
+        },
+      },
+    );
   }
 
   void deleteTheme(String themeName) {

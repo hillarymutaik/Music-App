@@ -14,7 +14,7 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with BlackHole.  If not, see <http://www.gnu.org/licenses/>.
  * 
- * Copyright (c) 2021-2022, Ankit Sangwan
+ * Copyright (c) 2021-2023, Ankit Sangwan
  */
 
 import 'package:blackhole/Helpers/config.dart';
@@ -38,8 +38,20 @@ class _PlayerGradientSelectionState extends State<PlayerGradientSelection> {
     'halfDark',
     'fullLight',
     'fullDark',
-    'fullMix'
+    'fullMix',
   ];
+  final List<String> recommended = [
+    'halfDark',
+    'fullDark',
+  ];
+  final Map<String, String> typeMapping = {
+    'simple': 'Simple',
+    'halfLight': 'Half Light',
+    'halfDark': 'Half Dark',
+    'fullLight': 'Full Light',
+    'fullDark': 'Full Dark',
+    'fullMix': 'Full Mix',
+  };
   final List<Color?> gradientColor = [Colors.lightGreen, Colors.teal];
   final MyTheme currentTheme = GetIt.I<MyTheme>();
   String gradientType = Hive.box('settings')
@@ -60,8 +72,8 @@ class _PlayerGradientSelectionState extends State<PlayerGradientSelection> {
       body: SafeArea(
         child: GridView.count(
           shrinkWrap: true,
-          crossAxisCount: MediaQuery.of(context).size.width >
-                  MediaQuery.of(context).size.height
+          crossAxisCount: MediaQuery.sizeOf(context).width >
+                  MediaQuery.sizeOf(context).height
               ? 6
               : 3,
           physics: const BouncingScrollPhysics(),
@@ -89,7 +101,8 @@ class _PlayerGradientSelectionState extends State<PlayerGradientSelection> {
                             ),
                           ),
                           clipBehavior: Clip.antiAlias,
-                          child: DecoratedBox(
+                          // ignore: use_decorated_box
+                          child: Container(
                             decoration: BoxDecoration(
                               gradient: LinearGradient(
                                 begin: type == 'simple'
@@ -122,7 +135,7 @@ class _PlayerGradientSelectionState extends State<PlayerGradientSelection> {
                                             if (type == 'fullMix')
                                               gradientColor[1] ?? Colors.black
                                             else
-                                              Colors.black
+                                              Colors.black,
                                           ]
                                         : [
                                             gradientColor[0] ??
@@ -151,7 +164,7 @@ class _PlayerGradientSelectionState extends State<PlayerGradientSelection> {
                                 child: FittedBox(
                                   child: SizedBox.square(
                                     dimension:
-                                        MediaQuery.of(context).size.width / 5,
+                                        MediaQuery.sizeOf(context).width / 5,
                                   ),
                                 ),
                               ),
@@ -171,10 +184,9 @@ class _PlayerGradientSelectionState extends State<PlayerGradientSelection> {
                                 clipBehavior: Clip.antiAlias,
                                 child: FittedBox(
                                   child: SizedBox(
-                                    width:
-                                        MediaQuery.of(context).size.width / 5,
+                                    width: MediaQuery.sizeOf(context).width / 5,
                                     height:
-                                        MediaQuery.of(context).size.width / 25,
+                                        MediaQuery.sizeOf(context).width / 25,
                                   ),
                                 ),
                               ),
@@ -192,10 +204,9 @@ class _PlayerGradientSelectionState extends State<PlayerGradientSelection> {
                                 clipBehavior: Clip.antiAlias,
                                 child: FittedBox(
                                   child: SizedBox(
-                                    width:
-                                        MediaQuery.of(context).size.width / 5,
+                                    width: MediaQuery.sizeOf(context).width / 5,
                                     height:
-                                        MediaQuery.of(context).size.width / 25,
+                                        MediaQuery.sizeOf(context).width / 25,
                                   ),
                                 ),
                               ),
@@ -207,6 +218,21 @@ class _PlayerGradientSelectionState extends State<PlayerGradientSelection> {
                         ),
                         if (gradientType == type)
                           const Center(child: Icon(Icons.check_rounded)),
+                        if (recommended.contains(type))
+                          const Align(
+                            alignment: Alignment.topRight,
+                            child: Padding(
+                              padding: EdgeInsets.all(10.0),
+                              child: Icon(Icons.star_rounded),
+                            ),
+                          ),
+                        Align(
+                          alignment: Alignment.bottomCenter,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 10.0),
+                            child: Text(typeMapping[type]!),
+                          ),
+                        ),
                       ],
                     ),
                   ),

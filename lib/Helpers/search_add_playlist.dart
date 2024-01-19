@@ -14,18 +14,22 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with BlackHole.  If not, see <http://www.gnu.org/licenses/>.
  * 
- * Copyright (c) 2021-2022, Ankit Sangwan
+ * Copyright (c) 2021-2023, Ankit Sangwan
  */
 
 import 'dart:convert';
 
 import 'package:blackhole/APIs/api.dart';
+import 'package:blackhole/APIs/spotify_api.dart';
 import 'package:blackhole/CustomWidgets/gradient_containers.dart';
+import 'package:blackhole/Helpers/matcher.dart';
 import 'package:blackhole/Helpers/playlist.dart';
 import 'package:blackhole/Services/youtube_services.dart';
+import 'package:blackhole/Services/yt_music.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:http/http.dart';
+import 'package:logging/logging.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 
 // ignore: avoid_classes_with_only_static_members
@@ -35,21 +39,31 @@ class SearchAddPlaylist {
     try {
       final RegExpMatch? id = RegExp(r'.*list\=(.*?)&').firstMatch(link);
       if (id != null) {
-        final Playlist metadata =
-            await YouTubeServices().getPlaylistDetails(id[1]!);
-        final List<Video> tracks =
-            await YouTubeServices().getPlaylistSongs(id[1]!);
-        return {
-          'title': metadata.title,
-          'image': metadata.thumbnails.standardResUrl,
-          'author': metadata.author,
-          'description': metadata.description,
-          'tracks': tracks,
-          'count': tracks.length,
-        };
+        final Map metadata = await YtMusicService().getPlaylistDetails(id[1]!);
+        return metadata;
       }
       return {};
     } catch (e) {
+      Logger.root.severe('Error while adding YT playlist: $e');
+      return {};
+    }
+  }
+
+  static Future<Map> addSpotifyPlaylist(
+    String title,
+    String accessToken,
+    String playlistId,
+  ) async {
+    try {
+      final List tracks =
+          await SpotifyApi().getAllTracksOfPlaylist(accessToken, playlistId);
+      return {
+        'title': title,
+        'count': tracks.length,
+        'tracks': tracks,
+      };
+    } catch (e) {
+      Logger.root.severe('Error while adding Spotify playlist: $e');
       return {};
     }
   }
@@ -73,7 +87,7 @@ class SearchAddPlaylist {
             Uri.parse(response.headers['location'].toString());
         baseClient.close();
         final RegExpMatch? id2 =
-            RegExp(r'.*?id\=(.*)&').firstMatch('${redirectUri.toString()}&');
+            RegExp(r'.*?id\=(.*)&').firstMatch('$redirectUri&');
         if (id2 != null) {
           final List tracks = await getRessoSongs(playlistId: id2[1]!);
           return {
@@ -85,6 +99,7 @@ class SearchAddPlaylist {
       }
       return {};
     } catch (e) {
+      Logger.root.severe('Error while adding Resso playlist: $e');
       return {};
     }
   }
@@ -108,12 +123,13 @@ class SearchAddPlaylist {
             await SaavnAPI().getSongFromToken(id, 'playlist', n: -1);
         return {
           'title': data['title'],
-          'count': data['list'].length,
-          'tracks': data['list'],
+          'count': data['songs'].length,
+          'tracks': data['songs'],
         };
       }
       return {};
     } catch (e) {
+      Logger.root.severe('Error while adding JioSaavn playlist: $e');
       return {};
     }
   }
@@ -129,11 +145,72 @@ class SearchAddPlaylist {
         yield {'done': ++done, 'name': ''};
       }
       try {
-        final List result =
-            await SaavnAPI().fetchTopSearchResult(trackName!.split('|')[0]);
-        addMapToPlaylist(playName, result[0] as Map);
+        final Map data = await SaavnAPI().fetchSongSearchResults(
+          searchQuery: trackName!.split('|')[0],
+          count: 3,
+        );
+        final List result = data['songs'] as List;
+        final index = findBestMatch(
+          result,
+          {
+            'title': trackName,
+            'artist': trackName,
+          },
+        );
+        if (index != -1) {
+          addMapToPlaylist(playName, result[index] as Map);
+        } else {
+          YouTubeServices.instance
+              .formatVideo(
+            video: track as Video,
+            getUrl: false,
+            quality: 'low',
+          )
+              .then((songMap) {
+            if (songMap != null) {
+              addMapToPlaylist(playName, songMap);
+            }
+          });
+        }
       } catch (e) {
-        // print('Error in $_done: $e');
+        Logger.root.severe('Error in $done: $e');
+      }
+    }
+  }
+
+  static Stream<Map> spotifySongsAdder(String playName, List tracks) async* {
+    int done = 0;
+    for (final track in tracks) {
+      String? trackName;
+      String? artistName;
+      try {
+        trackName = track['track']['name'].toString();
+        artistName = (track['track']['artists'] as List)
+            .map((e) => e['name'])
+            .toList()
+            .join(', ');
+        yield {'done': ++done, 'name': '$trackName - $artistName'};
+      } catch (e) {
+        yield {'done': ++done, 'name': ''};
+      }
+      try {
+        final Map data = await SaavnAPI().fetchSongSearchResults(
+          searchQuery: '$trackName - $artistName',
+          count: 3,
+        );
+        final List result = data['songs'] as List;
+        final index = findBestMatch(
+          result,
+          {
+            'title': trackName,
+            'artist': artistName,
+          },
+        );
+        if (index != -1) {
+          addMapToPlaylist(playName, result[index] as Map);
+        }
+      } catch (e) {
+        Logger.root.severe('Error in $done: $e');
       }
     }
   }
@@ -155,11 +232,23 @@ class SearchAddPlaylist {
         yield {'done': ++done, 'name': ''};
       }
       try {
-        final List result =
-            await SaavnAPI().fetchTopSearchResult('$trackName by $artistName');
-        addMapToPlaylist(playName, result[0] as Map);
+        final Map data = await SaavnAPI().fetchSongSearchResults(
+          searchQuery: '$trackName - $artistName',
+          count: 3,
+        );
+        final List result = data['songs'] as List;
+        final index = findBestMatch(
+          result,
+          {
+            'title': trackName,
+            'artist': artistName,
+          },
+        );
+        if (index != -1) {
+          addMapToPlaylist(playName, result[index] as Map);
+        }
       } catch (e) {
-        // print('Error in $_done: $e');
+        Logger.root.severe('Error in $done: $e');
       }
     }
   }
@@ -183,7 +272,7 @@ class SearchAddPlaylist {
                   width: 300,
                   child: StreamBuilder<Object>(
                     stream: songAdd as Stream<Object>?,
-                    builder: (ctxt, AsyncSnapshot snapshot) {
+                    builder: (BuildContext ctxt, AsyncSnapshot snapshot) {
                       final Map? data = snapshot.data as Map?;
                       final int done = (data ?? const {})['done'] as int? ?? 0;
                       final String name =
@@ -200,8 +289,8 @@ class SearchAddPlaylist {
                             ),
                           ),
                           SizedBox(
-                            height: 80,
-                            width: 80,
+                            height: 90,
+                            width: 90,
                             child: Stack(
                               children: [
                                 Center(
@@ -209,8 +298,8 @@ class SearchAddPlaylist {
                                 ),
                                 Center(
                                   child: SizedBox(
-                                    height: 77,
-                                    width: 77,
+                                    height: 85,
+                                    width: 85,
                                     child: CircularProgressIndicator(
                                       valueColor: AlwaysStoppedAnimation<Color>(
                                         Theme.of(ctxt).colorScheme.secondary,
@@ -224,7 +313,9 @@ class SearchAddPlaylist {
                           ),
                           Center(
                             child: Text(
-                              name,
+                              '$name\n',
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
                               textAlign: TextAlign.center,
                             ),
                           ),

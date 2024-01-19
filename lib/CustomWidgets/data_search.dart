@@ -14,14 +14,14 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with BlackHole.  If not, see <http://www.gnu.org/licenses/>.
  * 
- * Copyright (c) 2021-2022, Ankit Sangwan
+ * Copyright (c) 2021-2023, Ankit Sangwan
  */
 
-import 'dart:io';
-
+import 'package:blackhole/CustomWidgets/download_button.dart';
+import 'package:blackhole/CustomWidgets/image_card.dart';
+import 'package:blackhole/CustomWidgets/song_tile_trailing_menu.dart';
 import 'package:blackhole/Helpers/audio_query.dart';
-import 'package:blackhole/Screens/Player/audioplayer.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+import 'package:blackhole/Services/player_service.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
@@ -72,21 +72,15 @@ class DataSearch extends SearchDelegate {
         ? data
         : [
             ...{
-              ...data
-                  .where(
-                    (element) => element.title
-                        .toLowerCase()
-                        .contains(query.toLowerCase()),
-                  )
-                  .toList(),
-              ...data
-                  .where(
-                    (element) => element.artist!
-                        .toLowerCase()
-                        .contains(query.toLowerCase()),
-                  )
-                  .toList(),
-            }
+              ...data.where(
+                (element) =>
+                    element.title.toLowerCase().contains(query.toLowerCase()),
+              ),
+              ...data.where(
+                (element) =>
+                    element.artist!.toLowerCase().contains(query.toLowerCase()),
+              ),
+            },
           ];
     return ListView.builder(
       physics: const BouncingScrollPhysics(),
@@ -113,19 +107,12 @@ class DataSearch extends SearchDelegate {
               : suggestionList[index].artist!,
           overflow: TextOverflow.ellipsis,
         ),
-        onTap: () async {
-          Navigator.of(context).push(
-            PageRouteBuilder(
-              opaque: false,
-              pageBuilder: (_, __, ___) => PlayScreen(
-                songsList: suggestionList,
-                index: index,
-                offline: true,
-                fromMiniplayer: false,
-                fromDownloads: false,
-                recommend: false,
-              ),
-            ),
+        onTap: () {
+          PlayerInvoke.init(
+            songsList: data,
+            index: data.indexOf(suggestionList[index]),
+            isOffline: true,
+            recommend: false,
           );
         },
       ),
@@ -138,21 +125,15 @@ class DataSearch extends SearchDelegate {
         ? data
         : [
             ...{
-              ...data
-                  .where(
-                    (element) => element.title
-                        .toLowerCase()
-                        .contains(query.toLowerCase()),
-                  )
-                  .toList(),
-              ...data
-                  .where(
-                    (element) => element.artist!
-                        .toLowerCase()
-                        .contains(query.toLowerCase()),
-                  )
-                  .toList(),
-            }
+              ...data.where(
+                (element) =>
+                    element.title.toLowerCase().contains(query.toLowerCase()),
+              ),
+              ...data.where(
+                (element) =>
+                    element.artist!.toLowerCase().contains(query.toLowerCase()),
+              ),
+            },
           ];
     return ListView.builder(
       physics: const BouncingScrollPhysics(),
@@ -179,19 +160,12 @@ class DataSearch extends SearchDelegate {
               : suggestionList[index].artist!,
           overflow: TextOverflow.ellipsis,
         ),
-        onTap: () async {
-          Navigator.of(context).push(
-            PageRouteBuilder(
-              opaque: false,
-              pageBuilder: (_, __, ___) => PlayScreen(
-                songsList: suggestionList,
-                index: index,
-                offline: true,
-                fromMiniplayer: false,
-                fromDownloads: false,
-                recommend: false,
-              ),
-            ),
+        onTap: () {
+          PlayerInvoke.init(
+            songsList: data,
+            index: data.indexOf(suggestionList[index]),
+            isOffline: true,
+            recommend: false,
           );
         },
       ),
@@ -208,7 +182,7 @@ class DataSearch extends SearchDelegate {
       hintColor: Colors.white70,
       primaryIconTheme: theme.primaryIconTheme.copyWith(color: Colors.white),
       textTheme: theme.textTheme.copyWith(
-        headline6:
+        titleLarge:
             const TextStyle(fontWeight: FontWeight.normal, color: Colors.white),
       ),
       inputDecorationTheme:
@@ -220,8 +194,13 @@ class DataSearch extends SearchDelegate {
 class DownloadsSearch extends SearchDelegate {
   final bool isDowns;
   final List data;
+  final Function(Map)? onDelete;
 
-  DownloadsSearch({required this.data, this.isDowns = false});
+  DownloadsSearch({
+    required this.data,
+    this.isDowns = false,
+    this.onDelete,
+  });
 
   @override
   List<Widget> buildActions(BuildContext context) {
@@ -262,23 +241,19 @@ class DownloadsSearch extends SearchDelegate {
         ? data
         : [
             ...{
-              ...data
-                  .where(
-                    (element) => element['title']
-                        .toString()
-                        .toLowerCase()
-                        .contains(query.toLowerCase()),
-                  )
-                  .toList(),
-              ...data
-                  .where(
-                    (element) => element['artist']
-                        .toString()
-                        .toLowerCase()
-                        .contains(query.toLowerCase()),
-                  )
-                  .toList(),
-            }
+              ...data.where(
+                (element) => element['title']
+                    .toString()
+                    .toLowerCase()
+                    .contains(query.toLowerCase()),
+              ),
+              ...data.where(
+                (element) => element['artist']
+                    .toString()
+                    .toLowerCase()
+                    .contains(query.toLowerCase()),
+              ),
+            },
           ];
     return ListView.builder(
       physics: const BouncingScrollPhysics(),
@@ -287,38 +262,11 @@ class DownloadsSearch extends SearchDelegate {
       itemExtent: 70.0,
       itemCount: suggestionList.length,
       itemBuilder: (context, index) => ListTile(
-        leading: Card(
-          elevation: 5,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(7.0),
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: SizedBox.square(
-            dimension: 50,
-            child: isDowns
-                ? Image(
-                    fit: BoxFit.cover,
-                    image: FileImage(
-                      File(suggestionList[index]['image'].toString()),
-                    ),
-                    errorBuilder: (_, __, ___) =>
-                        Image.asset('assets/cover.jpg'),
-                  )
-                : CachedNetworkImage(
-                    fit: BoxFit.cover,
-                    errorWidget: (context, _, __) => const Image(
-                      fit: BoxFit.cover,
-                      image: AssetImage('assets/cover.jpg'),
-                    ),
-                    imageUrl: suggestionList[index]['image']
-                        .toString()
-                        .replaceAll('http:', 'https:'),
-                    placeholder: (context, url) => const Image(
-                      fit: BoxFit.cover,
-                      image: AssetImage('assets/cover.jpg'),
-                    ),
-                  ),
-          ),
+        leading: imageCard(
+          imageUrl: isDowns
+              ? suggestionList[index]['image'].toString()
+              : suggestionList[index]['image'].toString(),
+          localImage: isDowns,
         ),
         title: Text(
           suggestionList[index]['title'].toString(),
@@ -328,19 +276,29 @@ class DownloadsSearch extends SearchDelegate {
           suggestionList[index]['artist'].toString(),
           overflow: TextOverflow.ellipsis,
         ),
-        onTap: () {
-          Navigator.of(context).push(
-            PageRouteBuilder(
-              opaque: false,
-              pageBuilder: (_, __, ___) => PlayScreen(
-                songsList: suggestionList,
-                index: index,
-                offline: isDowns,
-                fromMiniplayer: false,
-                fromDownloads: isDowns,
-                recommend: false,
+        trailing: isDowns
+            ? null
+            : Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  DownloadButton(
+                    data: suggestionList[index] as Map,
+                    icon: 'download',
+                  ),
+                  SongTileTrailingMenu(
+                    data: suggestionList[index] as Map,
+                    isPlaylist: true,
+                    deleteLiked: onDelete,
+                  ),
+                ],
               ),
-            ),
+        onTap: () {
+          PlayerInvoke.init(
+            songsList: data,
+            index: data.indexOf(suggestionList[index]),
+            isOffline: isDowns,
+            fromDownloads: isDowns,
+            recommend: false,
           );
         },
       ),
@@ -353,23 +311,19 @@ class DownloadsSearch extends SearchDelegate {
         ? data
         : [
             ...{
-              ...data
-                  .where(
-                    (element) => element['title']
-                        .toString()
-                        .toLowerCase()
-                        .contains(query.toLowerCase()),
-                  )
-                  .toList(),
-              ...data
-                  .where(
-                    (element) => element['artist']
-                        .toString()
-                        .toLowerCase()
-                        .contains(query.toLowerCase()),
-                  )
-                  .toList(),
-            }
+              ...data.where(
+                (element) => element['title']
+                    .toString()
+                    .toLowerCase()
+                    .contains(query.toLowerCase()),
+              ),
+              ...data.where(
+                (element) => element['artist']
+                    .toString()
+                    .toLowerCase()
+                    .contains(query.toLowerCase()),
+              ),
+            },
           ];
     return ListView.builder(
       physics: const BouncingScrollPhysics(),
@@ -378,38 +332,11 @@ class DownloadsSearch extends SearchDelegate {
       itemExtent: 70.0,
       itemCount: suggestionList.length,
       itemBuilder: (context, index) => ListTile(
-        leading: Card(
-          elevation: 5,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(7.0),
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: SizedBox.square(
-            dimension: 50,
-            child: isDowns
-                ? Image(
-                    fit: BoxFit.cover,
-                    image: FileImage(
-                      File(suggestionList[index]['image'].toString()),
-                    ),
-                    errorBuilder: (_, __, ___) =>
-                        Image.asset('assets/cover.jpg'),
-                  )
-                : CachedNetworkImage(
-                    fit: BoxFit.cover,
-                    errorWidget: (context, _, __) => const Image(
-                      fit: BoxFit.cover,
-                      image: AssetImage('assets/cover.jpg'),
-                    ),
-                    imageUrl: suggestionList[index]['image']
-                        .toString()
-                        .replaceAll('http:', 'https:'),
-                    placeholder: (context, url) => const Image(
-                      fit: BoxFit.cover,
-                      image: AssetImage('assets/cover.jpg'),
-                    ),
-                  ),
-          ),
+        leading: imageCard(
+          imageUrl: isDowns
+              ? suggestionList[index]['image'].toString()
+              : suggestionList[index]['image'].toString(),
+          localImage: isDowns,
         ),
         title: Text(
           suggestionList[index]['title'].toString(),
@@ -420,18 +347,12 @@ class DownloadsSearch extends SearchDelegate {
           overflow: TextOverflow.ellipsis,
         ),
         onTap: () {
-          Navigator.of(context).push(
-            PageRouteBuilder(
-              opaque: false,
-              pageBuilder: (_, __, ___) => PlayScreen(
-                songsList: suggestionList,
-                index: index,
-                offline: isDowns,
-                fromMiniplayer: false,
-                fromDownloads: isDowns,
-                recommend: false,
-              ),
-            ),
+          PlayerInvoke.init(
+            songsList: data,
+            index: data.indexOf(suggestionList[index]),
+            isOffline: isDowns,
+            fromDownloads: isDowns,
+            recommend: false,
           );
         },
       ),
@@ -448,11 +369,12 @@ class DownloadsSearch extends SearchDelegate {
       hintColor: Colors.white70,
       primaryIconTheme: theme.primaryIconTheme.copyWith(color: Colors.white),
       textTheme: theme.textTheme.copyWith(
-        headline6:
+        titleLarge:
             const TextStyle(fontWeight: FontWeight.normal, color: Colors.white),
       ),
       inputDecorationTheme:
           const InputDecorationTheme(focusedBorder: InputBorder.none),
+      scaffoldBackgroundColor: Colors.transparent,
     );
   }
 }

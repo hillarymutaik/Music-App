@@ -14,7 +14,7 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with BlackHole.  If not, see <http://www.gnu.org/licenses/>.
  * 
- * Copyright (c) 2021-2022, Ankit Sangwan
+ * Copyright (c) 2021-2023, Ankit Sangwan
  */
 
 import 'dart:io';
@@ -25,18 +25,19 @@ import 'package:blackhole/CustomWidgets/custom_physics.dart';
 import 'package:blackhole/CustomWidgets/data_search.dart';
 import 'package:blackhole/CustomWidgets/empty_screen.dart';
 import 'package:blackhole/CustomWidgets/gradient_containers.dart';
-import 'package:blackhole/CustomWidgets/miniplayer.dart';
+import 'package:blackhole/CustomWidgets/image_card.dart';
 import 'package:blackhole/CustomWidgets/playlist_head.dart';
 import 'package:blackhole/CustomWidgets/snackbar.dart';
 import 'package:blackhole/Helpers/picker.dart';
 import 'package:blackhole/Screens/Library/liked.dart';
-import 'package:blackhole/Screens/Player/audioplayer.dart';
+import 'package:blackhole/Services/player_service.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:hive/hive.dart';
+import 'package:logging/logging.dart';
 // import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 
@@ -58,6 +59,7 @@ class _DownloadsState extends State<Downloads>
   List _sortedArtistKeysList = [];
   List _sortedGenreKeysList = [];
   TabController? _tcontroller;
+  int _currentTabIndex = 0;
   // int currentIndex = 0;
   // String? tempPath = Hive.box('settings').get('tempDirPath')?.toString();
   int sortValue = Hive.box('settings').get('sortValue', defaultValue: 1) as int;
@@ -71,6 +73,12 @@ class _DownloadsState extends State<Downloads>
   @override
   void initState() {
     _tcontroller = TabController(length: 4, vsync: this);
+    _tcontroller!.addListener(() {
+      if ((_tcontroller!.previousIndex != 0 && _tcontroller!.index == 0) ||
+          (_tcontroller!.previousIndex == 0)) {
+        setState(() => _currentTabIndex = _tcontroller!.index);
+      }
+    });
     _scrollController.addListener(() {
       if (_scrollController.position.userScrollDirection ==
           ScrollDirection.reverse) {
@@ -117,7 +125,7 @@ class _DownloadsState extends State<Downloads>
               .addEntries([MapEntry(element['album'].toString(), tempAlbum)]);
         } else {
           _albums.addEntries([
-            MapEntry(element['album'].toString(), [element as Map])
+            MapEntry(element['album'].toString(), [element as Map]),
           ]);
         }
 
@@ -128,7 +136,7 @@ class _DownloadsState extends State<Downloads>
               .addEntries([MapEntry(element['artist'].toString(), tempArtist)]);
         } else {
           _artists.addEntries([
-            MapEntry(element['artist'].toString(), [element])
+            MapEntry(element['artist'].toString(), [element]),
           ]);
         }
 
@@ -139,7 +147,7 @@ class _DownloadsState extends State<Downloads>
               .addEntries([MapEntry(element['genre'].toString(), tempGenre)]);
         } else {
           _genres.addEntries([
-            MapEntry(element['genre'].toString(), [element])
+            MapEntry(element['genre'].toString(), [element]),
           ]);
         }
       } catch (e) {
@@ -147,6 +155,7 @@ class _DownloadsState extends State<Downloads>
         //   context,
         //   'Error: $e',
         // );
+        Logger.root.severe('Error while setting artist and album: $e');
       }
     }
 
@@ -171,7 +180,6 @@ class _DownloadsState extends State<Downloads>
               .toUpperCase()
               .compareTo(b['title'].toString().toUpperCase()),
         );
-        break;
       case 1:
         _songs.sort(
           (a, b) => a['dateAdded']
@@ -179,7 +187,6 @@ class _DownloadsState extends State<Downloads>
               .toUpperCase()
               .compareTo(b['dateAdded'].toString().toUpperCase()),
         );
-        break;
       case 2:
         _songs.sort(
           (a, b) => a['album']
@@ -187,7 +194,6 @@ class _DownloadsState extends State<Downloads>
               .toUpperCase()
               .compareTo(b['album'].toString().toUpperCase()),
         );
-        break;
       case 3:
         _songs.sort(
           (a, b) => a['artist']
@@ -195,7 +201,6 @@ class _DownloadsState extends State<Downloads>
               .toUpperCase()
               .compareTo(b['artist'].toString().toUpperCase()),
         );
-        break;
       case 4:
         _songs.sort(
           (a, b) => a['duration']
@@ -203,7 +208,6 @@ class _DownloadsState extends State<Downloads>
               .toUpperCase()
               .compareTo(b['duration'].toString().toUpperCase()),
         );
-        break;
       default:
         _songs.sort(
           (b, a) => a['dateAdded']
@@ -234,7 +238,6 @@ class _DownloadsState extends State<Downloads>
           (a, b) =>
               a.toString().toUpperCase().compareTo(b.toString().toUpperCase()),
         );
-        break;
       case 1:
         _sortedAlbumKeysList.sort(
           (b, a) =>
@@ -248,7 +251,6 @@ class _DownloadsState extends State<Downloads>
           (b, a) =>
               a.toString().toUpperCase().compareTo(b.toString().toUpperCase()),
         );
-        break;
       case 2:
         _sortedAlbumKeysList
             .sort((b, a) => _albums[a]!.length.compareTo(_albums[b]!.length));
@@ -256,7 +258,6 @@ class _DownloadsState extends State<Downloads>
             .sort((b, a) => _artists[a]!.length.compareTo(_artists[b]!.length));
         _sortedGenreKeysList
             .sort((b, a) => _genres[a]!.length.compareTo(_genres[b]!.length));
-        break;
       case 3:
         _sortedAlbumKeysList
             .sort((a, b) => _albums[a]!.length.compareTo(_albums[b]!.length));
@@ -264,7 +265,6 @@ class _DownloadsState extends State<Downloads>
             .sort((a, b) => _artists[a]!.length.compareTo(_artists[b]!.length));
         _sortedGenreKeysList
             .sort((a, b) => _genres[a]!.length.compareTo(_genres[b]!.length));
-        break;
       default:
         _sortedAlbumKeysList
             .sort((b, a) => _albums[a]!.length.compareTo(_albums[b]!.length));
@@ -297,7 +297,7 @@ class _DownloadsState extends State<Downloads>
 
     _songs.remove(song);
     try {
-      audioFile.delete();
+      await audioFile.delete();
       if (await imageFile.exists()) {
         imageFile.delete();
       }
@@ -306,6 +306,7 @@ class _DownloadsState extends State<Downloads>
         '${AppLocalizations.of(context)!.deleted} ${song['title']}',
       );
     } catch (e) {
+      Logger.root.severe('Failed to delete $audioFile.path', e);
       ShowSnackBar().showSnackBar(
         context,
         '${AppLocalizations.of(context)!.failedDelete}: ${audioFile.path}\nError: $e',
@@ -316,275 +317,233 @@ class _DownloadsState extends State<Downloads>
   @override
   Widget build(BuildContext context) {
     return GradientContainer(
-      child: Column(
-        children: [
-          Expanded(
-            child: DefaultTabController(
-              length: 4,
-              child: Scaffold(
-                backgroundColor: Colors.transparent,
-                appBar: AppBar(
-                  title: Text(AppLocalizations.of(context)!.downs),
-                  centerTitle: true,
-                  backgroundColor:
-                      Theme.of(context).brightness == Brightness.dark
-                          ? Colors.transparent
-                          : Theme.of(context).colorScheme.secondary,
-                  elevation: 0,
-                  bottom: TabBar(
-                    controller: _tcontroller,
-                    indicatorSize: TabBarIndicatorSize.label,
-                    tabs: [
-                      Tab(
-                        text: AppLocalizations.of(context)!.songs,
-                      ),
-                      Tab(
-                        text: AppLocalizations.of(context)!.albums,
-                      ),
-                      Tab(
-                        text: AppLocalizations.of(context)!.artists,
-                      ),
-                      Tab(
-                        text: AppLocalizations.of(context)!.genres,
-                      ),
-                    ],
-                  ),
-                  actions: [
-                    IconButton(
-                      icon: const Icon(CupertinoIcons.search),
-                      tooltip: AppLocalizations.of(context)!.search,
-                      onPressed: () {
-                        showSearch(
-                          context: context,
-                          delegate: DownloadsSearch(
-                            data: _songs,
-                            isDowns: true,
-                          ),
-                        );
-                      },
-                    ),
-                    if (_songs.isNotEmpty)
-                      PopupMenuButton(
-                        icon: const Icon(Icons.sort_rounded),
-                        shape: const RoundedRectangleBorder(
-                          borderRadius: BorderRadius.all(Radius.circular(15.0)),
-                        ),
-                        onSelected:
-                            // (currentIndex == 0)
-                            // ?
-                            (int value) {
-                          if (value < 5) {
-                            sortValue = value;
-                            Hive.box('settings').put('sortValue', value);
-                          } else {
-                            orderValue = value - 5;
-                            Hive.box('settings').put('orderValue', orderValue);
-                          }
-                          sortSongs(sortVal: sortValue, order: orderValue);
-                          setState(() {});
-                          //   }
-                          // : (int value) {
-                          //     albumSortValue = value;
-                          //     Hive.box('settings')
-                          //         .put('albumSortValue', value);
-                          //     sortAlbums();
-                          //     setState(() {});
-                        },
-                        itemBuilder:
-                            // (currentIndex == 0)
-                            // ?
-                            (context) {
-                          final List<String> sortTypes = [
-                            AppLocalizations.of(context)!.displayName,
-                            AppLocalizations.of(context)!.dateAdded,
-                            AppLocalizations.of(context)!.album,
-                            AppLocalizations.of(context)!.artist,
-                            AppLocalizations.of(context)!.duration,
-                          ];
-                          final List<String> orderTypes = [
-                            AppLocalizations.of(context)!.inc,
-                            AppLocalizations.of(context)!.dec,
-                          ];
-                          final menuList = <PopupMenuEntry<int>>[];
-                          menuList.addAll(
-                            sortTypes
-                                .map(
-                                  (e) => PopupMenuItem(
-                                    value: sortTypes.indexOf(e),
-                                    child: Row(
-                                      children: [
-                                        if (sortValue == sortTypes.indexOf(e))
-                                          Icon(
-                                            Icons.check_rounded,
-                                            color:
-                                                Theme.of(context).brightness ==
-                                                        Brightness.dark
-                                                    ? Colors.white
-                                                    : Colors.grey[700],
-                                          )
-                                        else
-                                          const SizedBox(),
-                                        const SizedBox(width: 10),
-                                        Text(
-                                          e,
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                )
-                                .toList(),
-                          );
-                          menuList.add(
-                            const PopupMenuDivider(
-                              height: 10,
-                            ),
-                          );
-                          menuList.addAll(
-                            orderTypes
-                                .map(
-                                  (e) => PopupMenuItem(
-                                    value: sortTypes.length +
-                                        orderTypes.indexOf(e),
-                                    child: Row(
-                                      children: [
-                                        if (orderValue == orderTypes.indexOf(e))
-                                          Icon(
-                                            Icons.check_rounded,
-                                            color:
-                                                Theme.of(context).brightness ==
-                                                        Brightness.dark
-                                                    ? Colors.white
-                                                    : Colors.grey[700],
-                                          )
-                                        else
-                                          const SizedBox(),
-                                        const SizedBox(width: 10),
-                                        Text(
-                                          e,
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                )
-                                .toList(),
-                          );
-                          return menuList;
-                        },
-                      ),
-                  ],
+      child: DefaultTabController(
+        length: 4,
+        child: Scaffold(
+          backgroundColor: Colors.transparent,
+          appBar: AppBar(
+            title: Text(AppLocalizations.of(context)!.downs),
+            centerTitle: true,
+            backgroundColor: Theme.of(context).brightness == Brightness.dark
+                ? Colors.transparent
+                : Theme.of(context).colorScheme.secondary,
+            elevation: 0,
+            bottom: TabBar(
+              controller: _tcontroller,
+              indicatorSize: TabBarIndicatorSize.label,
+              tabs: [
+                Tab(
+                  text: AppLocalizations.of(context)!.songs,
                 ),
-                body: !added
-                    ? const Center(
-                        child: CircularProgressIndicator(),
-                      )
-                    : TabBarView(
-                        physics: const CustomPhysics(),
-                        controller: _tcontroller,
-                        children: [
-                          DownSongsTab(
-                            onDelete: (Map item) {
-                              deleteSong(item);
-                            },
-                            songs: _songs,
-                            scrollController: _scrollController,
-                          ),
-                          AlbumsTab(
-                            albums: _albums,
-                            offline: true,
-                            type: 'album',
-                            sortedAlbumKeysList: _sortedAlbumKeysList,
-                          ),
-                          AlbumsTab(
-                            albums: _artists,
-                            type: 'artist',
-                            // tempPath: tempPath,
-                            offline: true,
-                            sortedAlbumKeysList: _sortedArtistKeysList,
-                          ),
-                          AlbumsTab(
-                            albums: _genres,
-                            type: 'genre',
-                            offline: true,
-                            sortedAlbumKeysList: _sortedGenreKeysList,
-                          ),
-                        ],
-                      ),
-                floatingActionButton: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).cardColor,
-                    borderRadius: BorderRadius.circular(100.0),
+                Tab(
+                  text: AppLocalizations.of(context)!.albums,
+                ),
+                Tab(
+                  text: AppLocalizations.of(context)!.artists,
+                ),
+                Tab(
+                  text: AppLocalizations.of(context)!.genres,
+                ),
+              ],
+            ),
+            actions: [
+              IconButton(
+                icon: const Icon(CupertinoIcons.search),
+                tooltip: AppLocalizations.of(context)!.search,
+                onPressed: () {
+                  showSearch(
+                    context: context,
+                    delegate: DownloadsSearch(
+                      data: _songs,
+                      isDowns: true,
+                    ),
+                  );
+                },
+              ),
+              if (_songs.isNotEmpty && _currentTabIndex == 0)
+                PopupMenuButton(
+                  icon: const Icon(Icons.sort_rounded),
+                  shape: const RoundedRectangleBorder(
+                    borderRadius: BorderRadius.all(Radius.circular(15.0)),
                   ),
-                  child: GestureDetector(
-                    onTap: () {
-                      if (_songs.isNotEmpty) {
-                        final tempList = _songs.toList();
-                        tempList.shuffle();
-                        Navigator.of(context).push(
-                          PageRouteBuilder(
-                            opaque: false,
-                            pageBuilder: (_, __, ___) => PlayScreen(
-                              songsList: tempList,
-                              index: 0,
-                              offline: true,
-                              fromMiniplayer: false,
-                              fromDownloads: true,
-                              recommend: false,
-                            ),
-                          ),
-                        );
-                      }
-                    },
-                    child: Padding(
-                      padding: const EdgeInsets.all(10.0),
-                      child: AnimatedSize(
-                        duration: const Duration(milliseconds: 200),
-                        child: ValueListenableBuilder<bool>(
-                          valueListenable: _showShuffle,
-                          builder: (
-                            BuildContext context,
-                            bool showFullShuffle,
-                            Widget? child,
-                          ) {
-                            return Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.shuffle_rounded,
-                                  color: Theme.of(context).brightness ==
-                                          Brightness.dark
-                                      ? Colors.white
-                                      : Colors.black,
-                                  size: 24.0,
-                                ),
-                                if (showFullShuffle) const SizedBox(width: 5.0),
-                                if (showFullShuffle)
-                                  Text(
-                                    AppLocalizations.of(context)!.shuffle,
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 18.0,
+                  onSelected:
+                      // (currentIndex == 0)
+                      // ?
+                      (int value) {
+                    if (value < 5) {
+                      sortValue = value;
+                      Hive.box('settings').put('sortValue', value);
+                    } else {
+                      orderValue = value - 5;
+                      Hive.box('settings').put('orderValue', orderValue);
+                    }
+                    sortSongs(sortVal: sortValue, order: orderValue);
+                    setState(() {});
+                    //   }
+                    // : (int value) {
+                    //     albumSortValue = value;
+                    //     Hive.box('settings')
+                    //         .put('albumSortValue', value);
+                    //     sortAlbums();
+                    //     setState(() {});
+                  },
+                  itemBuilder:
+                      // (currentIndex == 0)
+                      // ?
+                      (context) {
+                    final List<String> sortTypes = [
+                      AppLocalizations.of(context)!.displayName,
+                      AppLocalizations.of(context)!.dateAdded,
+                      AppLocalizations.of(context)!.album,
+                      AppLocalizations.of(context)!.artist,
+                      AppLocalizations.of(context)!.duration,
+                    ];
+                    final List<String> orderTypes = [
+                      AppLocalizations.of(context)!.inc,
+                      AppLocalizations.of(context)!.dec,
+                    ];
+                    final menuList = <PopupMenuEntry<int>>[];
+                    menuList.addAll(
+                      sortTypes
+                          .map(
+                            (e) => PopupMenuItem(
+                              value: sortTypes.indexOf(e),
+                              child: Row(
+                                children: [
+                                  if (sortValue == sortTypes.indexOf(e))
+                                    Icon(
+                                      Icons.check_rounded,
                                       color: Theme.of(context).brightness ==
                                               Brightness.dark
                                           ? Colors.white
-                                          : Colors.black,
-                                    ),
-                                    textAlign: TextAlign.center,
+                                          : Colors.grey[700],
+                                    )
+                                  else
+                                    const SizedBox(),
+                                  const SizedBox(width: 10),
+                                  Text(
+                                    e,
                                   ),
-                                if (showFullShuffle) const SizedBox(width: 2.5),
-                              ],
-                            );
-                          },
-                        ),
+                                ],
+                              ),
+                            ),
+                          )
+                          .toList(),
+                    );
+                    menuList.add(
+                      const PopupMenuDivider(
+                        height: 10,
                       ),
-                    ),
-                  ),
+                    );
+                    menuList.addAll(
+                      orderTypes
+                          .map(
+                            (e) => PopupMenuItem(
+                              value: sortTypes.length + orderTypes.indexOf(e),
+                              child: Row(
+                                children: [
+                                  if (orderValue == orderTypes.indexOf(e))
+                                    Icon(
+                                      Icons.check_rounded,
+                                      color: Theme.of(context).brightness ==
+                                              Brightness.dark
+                                          ? Colors.white
+                                          : Colors.grey[700],
+                                    )
+                                  else
+                                    const SizedBox(),
+                                  const SizedBox(width: 10),
+                                  Text(
+                                    e,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          )
+                          .toList(),
+                    );
+                    return menuList;
+                  },
                 ),
-              ),
-            ),
+            ],
           ),
-          const MiniPlayer(),
-        ],
+          body: !added
+              ? const Center(
+                  child: CircularProgressIndicator(),
+                )
+              : TabBarView(
+                  physics: const CustomPhysics(),
+                  controller: _tcontroller,
+                  children: [
+                    DownSongsTab(
+                      onDelete: (Map item) {
+                        deleteSong(item);
+                      },
+                      songs: _songs,
+                      scrollController: _scrollController,
+                    ),
+                    AlbumsTab(
+                      albums: _albums,
+                      offline: true,
+                      type: 'album',
+                      sortedAlbumKeysList: _sortedAlbumKeysList,
+                    ),
+                    AlbumsTab(
+                      albums: _artists,
+                      type: 'artist',
+                      // tempPath: tempPath,
+                      offline: true,
+                      sortedAlbumKeysList: _sortedArtistKeysList,
+                    ),
+                    AlbumsTab(
+                      albums: _genres,
+                      type: 'genre',
+                      offline: true,
+                      sortedAlbumKeysList: _sortedGenreKeysList,
+                    ),
+                  ],
+                ),
+          floatingActionButton: ValueListenableBuilder(
+            valueListenable: _showShuffle,
+            child: FloatingActionButton(
+              backgroundColor: Theme.of(context).cardColor,
+              child: Icon(
+                Icons.shuffle_rounded,
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.white
+                    : Colors.black,
+                size: 24.0,
+              ),
+              onPressed: () {
+                if (_songs.isNotEmpty) {
+                  PlayerInvoke.init(
+                    songsList: _songs,
+                    index: 0,
+                    isOffline: true,
+                    fromDownloads: true,
+                    recommend: false,
+                    shuffle: true,
+                  );
+                }
+              },
+            ),
+            builder: (
+              BuildContext context,
+              bool showShuffle,
+              Widget? child,
+            ) {
+              return AnimatedSlide(
+                duration: const Duration(milliseconds: 300),
+                offset: showShuffle ? Offset.zero : const Offset(0, 2),
+                child: AnimatedOpacity(
+                  duration: const Duration(milliseconds: 300),
+                  opacity: showShuffle ? 1 : 0,
+                  child: child,
+                ),
+              );
+            },
+          ),
+        ),
       ),
     );
   }
@@ -664,8 +623,8 @@ Future<Map> editTags(Map song, BuildContext context) async {
                     ),
                     clipBehavior: Clip.antiAlias,
                     child: SizedBox(
-                      height: MediaQuery.of(context).size.width / 2,
-                      width: MediaQuery.of(context).size.width / 2,
+                      height: MediaQuery.sizeOf(context).width / 2,
+                      width: MediaQuery.sizeOf(context).width / 2,
                       child: Image(
                         fit: BoxFit.cover,
                         image: songImage,
@@ -804,7 +763,7 @@ Future<Map> editTags(Map song, BuildContext context) async {
         actions: [
           TextButton(
             style: TextButton.styleFrom(
-              primary: Theme.of(context).brightness == Brightness.dark
+              foregroundColor: Theme.of(context).brightness == Brightness.dark
                   ? Colors.white
                   : Colors.grey[700],
             ),
@@ -815,7 +774,7 @@ Future<Map> editTags(Map song, BuildContext context) async {
           ),
           TextButton(
             style: TextButton.styleFrom(
-              primary: Colors.white,
+              foregroundColor: Colors.white,
               backgroundColor: Theme.of(context).colorScheme.secondary,
             ),
             onPressed: () async {
@@ -855,6 +814,7 @@ Future<Map> editTags(Map song, BuildContext context) async {
                   );
                 }
               } catch (e) {
+                Logger.root.severe('Failed to edit tags', e);
                 ShowSnackBar().showSnackBar(
                   context,
                   '${AppLocalizations.of(context)!.failedTagEdit}\nError: $e',
@@ -953,50 +913,27 @@ class _DownSongsTabState extends State<DownSongsTab>
                   itemExtent: 70.0,
                   itemBuilder: (context, index) {
                     return ListTile(
-                      leading: Card(
-                        elevation: 5,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(7.0),
-                        ),
-                        clipBehavior: Clip.antiAlias,
-                        child: SizedBox.square(
-                          dimension: 50,
-                          child: Image(
-                            fit: BoxFit.cover,
-                            image: FileImage(
-                              File(
-                                widget.songs[index]['image'].toString(),
-                              ),
-                            ),
-                            errorBuilder: (_, __, ___) {
-                              if (widget.songs[index]['image'] != null &&
-                                  widget.songs[index]['image_url'] != null) {
-                                downImage(
-                                  widget.songs[index]['image'].toString(),
-                                  widget.songs[index]['path'].toString(),
-                                  widget.songs[index]['image_url'].toString(),
-                                );
-                              }
-                              return Image.asset(
-                                'assets/cover.jpg',
-                              );
-                            },
-                          ),
-                        ),
+                      leading: imageCard(
+                        imageUrl: widget.songs[index]['image'].toString(),
+                        localImage: true,
+                        localErrorFunction: (_, __) {
+                          if (widget.songs[index]['image'] != null &&
+                              widget.songs[index]['image_url'] != null) {
+                            downImage(
+                              widget.songs[index]['image'].toString(),
+                              widget.songs[index]['path'].toString(),
+                              widget.songs[index]['image_url'].toString(),
+                            );
+                          }
+                        },
                       ),
                       onTap: () {
-                        Navigator.of(context).push(
-                          PageRouteBuilder(
-                            opaque: false,
-                            pageBuilder: (_, __, ___) => PlayScreen(
-                              songsList: widget.songs,
-                              index: index,
-                              offline: true,
-                              fromDownloads: true,
-                              fromMiniplayer: false,
-                              recommend: false,
-                            ),
-                          ),
+                        PlayerInvoke.init(
+                          songsList: widget.songs,
+                          index: index,
+                          isOffline: true,
+                          fromDownloads: true,
+                          recommend: false,
                         );
                       },
                       title: Text(

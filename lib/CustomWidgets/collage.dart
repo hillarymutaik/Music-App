@@ -14,7 +14,7 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with BlackHole.  If not, see <http://www.gnu.org/licenses/>.
  * 
- * Copyright (c) 2021-2022, Ankit Sangwan
+ * Copyright (c) 2021-2023, Ankit Sangwan
  */
 
 import 'dart:io';
@@ -39,21 +39,28 @@ class Collage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       elevation: 5,
-      color: Colors.black,
+      color: Colors.transparent,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(
           borderRadius,
         ),
       ),
       clipBehavior: Clip.antiAlias,
+      margin: EdgeInsets.zero,
       child: SizedBox.square(
         dimension: 50,
         child: showGrid
             ? GridView.count(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                crossAxisCount: imageList.length < 3 ? 1 : 2,
-                children: imageList
+                crossAxisCount: imageList.length < 4 ? 1 : 2,
+                children: (imageList.isEmpty
+                        ? [
+                            {
+                              'image': '',
+                            }
+                          ]
+                        : imageList)
                     .map(
                       (image) => CachedNetworkImage(
                         fit: BoxFit.cover,
@@ -119,7 +126,7 @@ class OfflineCollage extends StatelessWidget {
             ? GridView.count(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                crossAxisCount: imageList.length < 3 ? 1 : 2,
+                crossAxisCount: imageList.length < 4 ? 1 : 2,
                 children: imageList.map((image) {
                   return image == null
                       ? Image(

@@ -14,13 +14,12 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with BlackHole.  If not, see <http://www.gnu.org/licenses/>.
  * 
- * Copyright (c) 2021-2022, Ankit Sangwan
+ * Copyright (c) 2021-2023, Ankit Sangwan
  */
-
-import 'dart:developer';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:logging/logging.dart';
 
 class ShowSnackBar {
   void showSnackBar(
@@ -36,6 +35,9 @@ class ShowSnackBar {
           duration: duration,
           elevation: 6,
           backgroundColor: Colors.grey[900],
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
           behavior: SnackBarBehavior.floating,
           content: Text(
             title,
@@ -52,7 +54,7 @@ class ShowSnackBar {
         ),
       );
     } catch (e) {
-      log('Failed to show Snackbar with title:$title');
+      Logger.root.severe('Failed to show Snackbar with title: $title', e);
     }
   }
 }

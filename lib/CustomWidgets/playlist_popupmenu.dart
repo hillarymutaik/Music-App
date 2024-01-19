@@ -14,7 +14,7 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with BlackHole.  If not, see <http://www.gnu.org/licenses/>.
  * 
- * Copyright (c) 2021-2022, Ankit Sangwan
+ * Copyright (c) 2021-2023, Ankit Sangwan
  */
 
 import 'package:audio_service/audio_service.dart';
@@ -55,7 +55,7 @@ class _PlaylistPopupMenuState extends State<PlaylistPopupMenu> {
           child: Row(
             children: [
               Icon(
-                Icons.playlist_add_rounded,
+                Icons.queue_music_rounded,
                 color: Theme.of(context).iconTheme.color,
               ),
               const SizedBox(width: 10.0),

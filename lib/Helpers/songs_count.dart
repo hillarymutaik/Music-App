@@ -14,7 +14,7 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with BlackHole.  If not, see <http://www.gnu.org/licenses/>.
  * 
- * Copyright (c) 2021-2022, Ankit Sangwan
+ * Copyright (c) 2021-2023, Ankit Sangwan
  */
 
 import 'package:hive/hive.dart';
@@ -26,7 +26,7 @@ void addSongsCount(String playlistName, int len, List images) {
     playlistDetails[playlistName].addAll({'count': len, 'imagesList': images});
   } else {
     playlistDetails.addEntries([
-      MapEntry(playlistName, {'count': len, 'imagesList': images})
+      MapEntry(playlistName, {'count': len, 'imagesList': images}),
     ]);
   }
   Hive.box('settings').put('playlistDetails', playlistDetails);

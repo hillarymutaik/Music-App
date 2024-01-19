@@ -14,12 +14,17 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with BlackHole.  If not, see <http://www.gnu.org/licenses/>.
  * 
- * Copyright (c) 2021-2022, Ankit Sangwan
+ * Copyright (c) 2021-2023, Ankit Sangwan
  */
 
 import 'dart:convert';
+import 'dart:io';
 
+import 'package:blackhole/Services/yt_music.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:html_unescape/html_unescape_small.dart';
 import 'package:http/http.dart';
+import 'package:logging/logging.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 
 class YouTubeServices {
@@ -28,17 +33,87 @@ class YouTubeServices {
     'search': '/results',
     'channel': '/channel',
     'music': '/music',
-    'playlist': '/playlist'
+    'playlist': '/playlist',
   };
   static const Map<String, String> headers = {
     'User-Agent':
-        'Mozilla/5.0 (Windows NT 10.0; rv:96.0) Gecko/20100101 Firefox/96.0'
+        'Mozilla/5.0 (Windows NT 10.0; rv:96.0) Gecko/20100101 Firefox/96.0',
   };
   final YoutubeExplode yt = YoutubeExplode();
+
+  YouTubeServices._privateConstructor();
+
+  static final YouTubeServices _instance =
+      YouTubeServices._privateConstructor();
+
+  static YouTubeServices get instance {
+    return _instance;
+  }
 
   Future<List<Video>> getPlaylistSongs(String id) async {
     final List<Video> results = await yt.playlists.getVideos(id).toList();
     return results;
+  }
+
+  Future<Video?> getVideoFromId(String id) async {
+    try {
+      final Video result = await yt.videos.get(id);
+      return result;
+    } catch (e) {
+      Logger.root.severe('Error while getting video from id', e);
+      return null;
+    }
+  }
+
+  Future<Map?> formatVideoFromId({
+    required String id,
+    Map? data,
+    bool? getUrl,
+  }) async {
+    final Video? vid = await getVideoFromId(id);
+    if (vid == null) {
+      return null;
+    }
+    final Map? response = await formatVideo(
+      video: vid,
+      quality: Hive.box('settings')
+          .get(
+            'ytQuality',
+            defaultValue: 'Low',
+          )
+          .toString(),
+      data: data,
+      getUrl: getUrl ?? true,
+      // preferM4a: Hive.box(
+      //         'settings')
+      //     .get('preferM4a',
+      //         defaultValue:
+      //             true) as bool
+    );
+    return response;
+  }
+
+  Future<Map?> refreshLink(String id, {bool useYTM = true}) async {
+    String quality;
+    try {
+      quality =
+          Hive.box('settings').get('quality', defaultValue: 'Low').toString();
+    } catch (e) {
+      quality = 'Low';
+    }
+    if (useYTM) {
+      final Map res = await YtMusicService().getSongData(
+        videoId: id,
+        quality: quality,
+      );
+      return res;
+    }
+    final Video? res = await getVideoFromId(id);
+    if (res == null) {
+      return null;
+    }
+    final Map? data = await formatVideo(video: res, quality: quality);
+    return data;
   }
 
   Future<Playlist> getPlaylistDetails(String id) async {
@@ -47,7 +122,10 @@ class YouTubeServices {
   }
 
   Future<Map<String, List>> getMusicHome() async {
-    final Uri link = Uri.https(searchAuthority, paths['music'].toString());
+    final Uri link = Uri.https(
+      searchAuthority,
+      paths['music'].toString(),
+    );
     try {
       final Response response = await get(link);
       if (response.statusCode != 200) {
@@ -70,28 +148,41 @@ class YouTubeServices {
       }).toList();
 
       final List finalResult = shelfRenderer.map((element) {
-        if (element['title']['runs'][0]['text'].trim() !=
-            'Highlights from Global Citizen Live') {
-          return {
-            'title': element['title']['runs'][0]['text'],
-            'playlists': element['title']['runs'][0]['text'].trim() == 'Charts'
-                ? formatChartItems(
+        final playlistItems = element['title']['runs'][0]['text'].trim() ==
+                    'Charts' ||
+                element['title']['runs'][0]['text'].trim() == 'Classements'
+            ? formatChartItems(
+                element['content']['horizontalListRenderer']['items'] as List,
+              )
+            : element['title']['runs'][0]['text']
+                        .toString()
+                        .contains('Music Videos') ||
+                    element['title']['runs'][0]['text']
+                        .toString()
+                        .contains('Nouveaux clips') ||
+                    element['title']['runs'][0]['text']
+                        .toString()
+                        .contains('En Musique Avec Moi') ||
+                    element['title']['runs'][0]['text']
+                        .toString()
+                        .contains('Performances Uniques')
+                ? formatVideoItems(
                     element['content']['horizontalListRenderer']['items']
                         as List,
                   )
-                : element['title']['runs'][0]['text']
-                        .toString()
-                        .contains('Music Videos')
-                    ? formatVideoItems(
-                        element['content']['horizontalListRenderer']['items']
-                            as List,
-                      )
-                    : formatItems(
-                        element['content']['horizontalListRenderer']['items']
-                            as List,
-                      ),
+                : formatItems(
+                    element['content']['horizontalListRenderer']['items']
+                        as List,
+                  );
+        if (playlistItems.isNotEmpty) {
+          return {
+            'title': element['title']['runs'][0]['text'],
+            'playlists': playlistItems,
           };
         } else {
+          Logger.root.severe(
+            "got null in getMusicHome for '${element['title']['runs'][0]['text']}'",
+          );
           return null;
         }
       }).toList();
@@ -101,23 +192,28 @@ class YouTubeServices {
 
       return {'body': finalResult, 'head': finalHeadResult};
     } catch (e) {
+      Logger.root.severe('Error in getMusicHome: $e');
       return {};
     }
   }
 
   Future<List> getSearchSuggestions({required String query}) async {
     const baseUrl =
-        // 'https://suggestqueries.google.com/complete/search?client=firefox&ds=yt&q=';
-        'https://invidious.snopyta.org/api/v1/search/suggestions?q=';
+        'https://suggestqueries.google.com/complete/search?client=firefox&ds=yt&q=';
+    // 'https://invidious.snopyta.org/api/v1/search/suggestions?q=';
     final Uri link = Uri.parse(baseUrl + query);
     try {
       final Response response = await get(link, headers: headers);
       if (response.statusCode != 200) {
         return [];
       }
-      final Map res = jsonDecode(response.body) as Map;
-      return res['suggestions'] as List;
+      final unescape = HtmlUnescape();
+      // final Map res = jsonDecode(response.body) as Map;
+      final List res = (jsonDecode(response.body) as List)[1] as List;
+      // return (res['suggestions'] as List).map((e) => unescape.convert(e.toString())).toList();
+      return res.map((e) => unescape.convert(e.toString())).toList();
     } catch (e) {
+      Logger.root.severe('Error in getSearchSuggestions: $e');
       return [];
     }
   }
@@ -148,6 +244,7 @@ class YouTubeServices {
 
       return result;
     } catch (e) {
+      Logger.root.severe('Error in formatVideoItems: $e');
       return List.empty();
     }
   }
@@ -179,6 +276,7 @@ class YouTubeServices {
 
       return result;
     } catch (e) {
+      Logger.root.severe('Error in formatChartItems: $e');
       return List.empty();
     }
   }
@@ -194,9 +292,11 @@ class YouTubeServices {
           'count': e['compactStationRenderer']['videoCountText']['runs'][0]
               ['text'],
           'playlistId': e['compactStationRenderer']['navigationEndpoint']
-              ['watchEndpoint']['playlistId'],
+                  ['watchEndpoint']?['playlistId'] ??
+              e['compactStationRenderer']['navigationEndpoint']
+                  ['watchPlaylistEndpoint']['playlistId'],
           'firstItemId': e['compactStationRenderer']['navigationEndpoint']
-              ['watchEndpoint']['videoId'],
+              ['watchEndpoint']?['videoId'],
           'image': e['compactStationRenderer']['thumbnail']['thumbnails'][0]
               ['url'],
           'imageMedium': e['compactStationRenderer']['thumbnail']['thumbnails']
@@ -210,6 +310,7 @@ class YouTubeServices {
 
       return result;
     } catch (e) {
+      Logger.root.severe('Error in formatItems: $e');
       return List.empty();
     }
   }
@@ -252,6 +353,7 @@ class YouTubeServices {
 
       return result;
     } catch (e) {
+      Logger.root.severe('Error in formatHeadItems: $e');
       return List.empty();
     }
   }
@@ -259,29 +361,49 @@ class YouTubeServices {
   Future<Map?> formatVideo({
     required Video video,
     required String quality,
+    Map? data,
+    bool getUrl = true,
     // bool preferM4a = true,
   }) async {
     if (video.duration?.inSeconds == null) return null;
-    final List urls = await getUri(video);
+    List<String> allUrls = [];
+    List<Map> urlsData = [];
+    String finalUrl = '';
+    String expireAt = '0';
+    if (getUrl) {
+      urlsData = await getYtStreamUrls(video.id.value);
+      final Map finalUrlData =
+          quality == 'High' ? urlsData.last : urlsData.first;
+      finalUrl = finalUrlData['url'].toString();
+      expireAt = finalUrlData['expireAt'].toString();
+      allUrls = urlsData.map((e) => e['url'].toString()).toList();
+    }
     return {
       'id': video.id.value,
-      'album': video.author,
+      'album': (data?['album'] ?? '') != ''
+          ? data!['album']
+          : video.author.replaceAll('- Topic', '').trim(),
       'duration': video.duration?.inSeconds.toString(),
-      'title': video.title,
-      'artist': video.author,
+      'title':
+          (data?['title'] ?? '') != '' ? data!['title'] : video.title.trim(),
+      'artist': (data?['artist'] ?? '') != ''
+          ? data!['artist']
+          : video.author.replaceAll('- Topic', '').trim(),
       'image': video.thumbnails.maxResUrl,
       'secondImage': video.thumbnails.highResUrl,
       'language': 'YouTube',
       'genre': 'YouTube',
-      'url': quality == 'High' ? urls.last : urls.first,
-      'lowUrl': urls.first,
-      'highUrl': urls.last,
+      'expire_at': expireAt,
+      'url': finalUrl,
+      'allUrls': allUrls,
+      'urlsData': urlsData,
       'year': video.uploadDate?.year.toString(),
       '320kbps': 'false',
       'has_lyrics': 'false',
       'release_date': video.publishDate.toString(),
       'album_id': video.channelId.value,
-      'subtitle': video.author,
+      'subtitle':
+          (data?['subtitle'] ?? '') != '' ? data!['subtitle'] : video.author,
       'perma_url': video.url,
     };
     // For invidous
@@ -329,9 +451,23 @@ class YouTubeServices {
     // }
   }
 
-  Future<List<Video>> fetchSearchResults(String query) async {
-    final List<Video> searchResults = await yt.search.getVideos(query);
+  Future<List<Map>> fetchSearchResults(String query) async {
+    final List<Video> searchResults = await yt.search.search(query);
+    final List<Map> videoResult = [];
+    for (final Video vid in searchResults) {
+      final res = await formatVideo(video: vid, quality: 'High', getUrl: false);
+      if (res != null) videoResult.add(res);
+    }
+    return [
+      {
+        'title': 'Videos',
+        'items': videoResult,
+        'allowViewAll': false,
+      }
+    ];
+    // return searchResults;
 
+    // For parsing html
     // Uri link = Uri.https(searchAuthority, searchPath, {"search_query": query});
     // final Response response = await get(link);
     // if (response.statusCode != 200) {
@@ -375,7 +511,6 @@ class YouTubeServices {
     //     'subtitle': '',
     //   };
     // }).toList();
-    return searchResults;
     // For invidous
     // try {
     //   final Uri link =
@@ -390,32 +525,114 @@ class YouTubeServices {
     // }
   }
 
-  Future<List<String>> getUri(
-    Video video,
+  String getExpireAt(String url) {
+    return RegExp('expire=(.*?)&').firstMatch(url)!.group(1) ??
+        (DateTime.now().millisecondsSinceEpoch ~/ 1000 + 3600 * 5.5).toString();
+  }
+
+  Future<List<Map>> getYtStreamUrls(String videoId) async {
+    try {
+      List<Map> urlData = [];
+
+      // check cache first
+      if (Hive.box('ytlinkcache').containsKey(videoId)) {
+        final cachedData = Hive.box('ytlinkcache').get(videoId);
+        if (cachedData is List) {
+          int minExpiredAt = 0;
+          for (final e in cachedData) {
+            final int cachedExpiredAt = int.parse(e['expireAt'].toString());
+            if (minExpiredAt == 0 || cachedExpiredAt < minExpiredAt) {
+              minExpiredAt = cachedExpiredAt;
+            }
+          }
+
+          if ((DateTime.now().millisecondsSinceEpoch ~/ 1000) + 350 >
+              minExpiredAt) {
+            // cache expired
+            urlData = await getUri(videoId);
+          } else {
+            // giving cache link
+            Logger.root.info('cache found for $videoId');
+            urlData = cachedData as List<Map>;
+          }
+        } else {
+          // old version cache is present
+          urlData = await getUri(videoId);
+        }
+      } else {
+        //cache not present
+        urlData = await getUri(videoId);
+      }
+
+      try {
+        await Hive.box('ytlinkcache')
+            .put(
+              videoId,
+              urlData,
+            )
+            .onError(
+              (error, stackTrace) => Logger.root.severe(
+                'Hive Error in formatVideo, you probably forgot to open box.\nError: $error',
+              ),
+            );
+      } catch (e) {
+        Logger.root.severe(
+          'Hive Error in formatVideo, you probably forgot to open box.\nError: $e',
+        );
+      }
+
+      return urlData;
+    } catch (e) {
+      Logger.root.severe('Error in getYtStreamUrls: $e');
+      return [];
+    }
+  }
+
+  Future<List<Map>> getUri(
+    String videoId,
     // {bool preferM4a = true}
   ) async {
-    final StreamManifest manifest =
-        await yt.videos.streamsClient.getManifest(video.id);
     final List<AudioOnlyStreamInfo> sortedStreamInfo =
-        manifest.audioOnly.sortByBitrate();
-    // if (preferM4a) {
-    //   final List<AudioOnlyStreamInfo> temp = sortedStreamInfo
-    //       .where((element) => element.audioCodec == 'mp4')
-    //       .toList();
+        await getStreamInfo(videoId);
+    return sortedStreamInfo
+        .map(
+          (e) => {
+            'bitrate': e.bitrate.kiloBitsPerSecond.round().toString(),
+            'codec': e.codec.subtype,
+            'qualityLabel': e.qualityLabel,
+            'size': e.size.totalMegaBytes.toStringAsFixed(2),
+            'url': e.url.toString(),
+            'expireAt': getExpireAt(e.url.toString()),
+          },
+        )
+        .toList();
+  }
 
-    //   if (temp.isNotEmpty) {
-    //     if (quality == 'High') {
-    //       final AudioOnlyStreamInfo streamInfo = temp.last;
-    //       return streamInfo.url.toString();
-    //     } else {
-    //       final AudioOnlyStreamInfo streamInfo = temp.first;
-    //       return streamInfo.url.toString();
-    //     }
-    //   }
-    // }
-    return [
-      sortedStreamInfo.first.url.toString(),
-      sortedStreamInfo.last.url.toString(),
-    ];
+  Future<List<AudioOnlyStreamInfo>> getStreamInfo(
+    String videoId, {
+    bool onlyMp4 = false,
+  }) async {
+    final StreamManifest manifest =
+        await yt.videos.streamsClient.getManifest(VideoId(videoId));
+    final List<AudioOnlyStreamInfo> sortedStreamInfo = manifest.audioOnly
+        .toList()
+      ..sort((a, b) => a.bitrate.compareTo(b.bitrate));
+    if (onlyMp4 || Platform.isIOS || Platform.isMacOS) {
+      final List<AudioOnlyStreamInfo> m4aStreams = sortedStreamInfo
+          .where((element) => element.audioCodec.contains('mp4'))
+          .toList();
+
+      if (m4aStreams.isNotEmpty) {
+        return m4aStreams;
+      }
+    }
+
+    return sortedStreamInfo;
+  }
+
+  Stream<List<int>> getStreamClient(
+    AudioOnlyStreamInfo streamInfo,
+  ) {
+    return yt.videos.streamsClient.get(streamInfo);
   }
 }

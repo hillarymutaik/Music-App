@@ -14,13 +14,14 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with BlackHole.  If not, see <http://www.gnu.org/licenses/>.
  * 
- * Copyright (c) 2021-2022, Ankit Sangwan
+ * Copyright (c) 2021-2023, Ankit Sangwan
  */
 
 import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:logging/logging.dart';
 import 'package:on_audio_query/on_audio_query.dart';
 
 class OfflineAudioQuery {
@@ -38,6 +39,9 @@ class OfflineAudioQuery {
     OrderType? orderType,
     String? path,
   }) async {
+    Logger.root.info(
+      'Getting songs with path: $path, sortType: $sortType, orderType: $orderType',
+    );
     return audioQuery.querySongs(
       sortType: sortType ?? SongSortType.DATE_ADDED,
       orderType: orderType ?? OrderType.DESC_OR_GREATER,
@@ -132,11 +136,11 @@ class OfflineAudioQuery {
     required ArtworkType type,
     required String tempPath,
     required String fileName,
-    int size = 200,
+    int size = 500,
     int quality = 100,
-    ArtworkFormat format = ArtworkFormat.JPEG,
+    ArtworkFormat format = ArtworkFormat.PNG,
   }) async {
-    final File file = File('$tempPath/$fileName.jpg');
+    final File file = File('$tempPath/$fileName.png');
 
     if (!await file.exists()) {
       await file.create();
@@ -157,9 +161,9 @@ class OfflineAudioQuery {
     required ArtworkType type,
     required String tempPath,
     required String fileName,
-    int size = 200,
+    int size = 500,
     int quality = 100,
-    ArtworkFormat format = ArtworkFormat.JPEG,
+    ArtworkFormat format = ArtworkFormat.PNG,
     ArtworkType artworkType = ArtworkType.AUDIO,
     BorderRadius? borderRadius,
     Clip clipBehavior = Clip.antiAlias,

@@ -33,12 +33,15 @@ Un increible reproductor de música basado en Flutter
 
 - [English :uk:](/README.md)
 - [Russian :ru:](/README.RU.md)
+- [Japanese :jp:](/README.JA.md)
+- [Belarusian :belarus:](/README.BE.md)
+- [Indonesian :indonesia:](/README.ID.md)
 
 Gracias a [Euri](https://github.com/EuriNaiz) por esta traducción
 
 ## Características
 
-* La mejor calidad de streaming (320kbps)
+* La alta calidad de streaming (320kbps AAC)
 * Búsqueda por álbum y por canción
 * Música en tendencias
 * Soporte a +15 idiomas (En la música)

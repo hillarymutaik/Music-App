@@ -10,38 +10,41 @@ An Open-Source Music Player App for all your needs!
 
 ### Don't forget to :star: the repo
 
-<!-- [![GitHub stars](https://img.shields.io/github/stars/Sangwan5688/BlackHole.svg?style=social&label=Star)](https://github.com//Sangwan5688/BlackHole) ![GitHub forks](https://img.shields.io/github/forks/Sangwan5688/BlackHole.svg?style=social&label=Forks) ![GitHub followers](https://img.shields.io/github/followers/Sangwan5688.svg?style=social&label=Follow) -->
+[![GitHub stars](https://img.shields.io/github/stars/Sangwan5688/BlackHole.svg?style=social&label=Star)](https://github.com//Sangwan5688/BlackHole) ![GitHub forks](https://img.shields.io/github/forks/Sangwan5688/BlackHole.svg?style=social&label=Forks) ![GitHub followers](https://img.shields.io/github/followers/Sangwan5688.svg?style=social&label=Follow)
 
-<!-- ## Download
+## Download
 
-[<img src="https://gitlab.com/IzzyOnDroid/repo/-/raw/master/assets/IzzyOnDroid.png"
-     alt="Get it on IzzyDroid"
-     height="100">](https://android.izzysoft.de/repo/apk/com.shadow.blackhole)
+[<img src="get_website.png"
+     alt="Download from Website"
+     height="90">](https://sangwan5688.github.io/download/)
+[<img src="get_github.png"
+     alt="Download from GitHub"
+     height="90">](https://github.com/Sangwan5688/BlackHole/releases)
+[<img src="get_telegram.png"
+     alt="Join Telegram Channel"
+     height="90">](https://t.me/blackhole_official)
 [<img src="https://fdroid.gitlab.io/artwork/badge/get-it-on.png"
      alt="Get it on F-Droid"
-     height="100">](https://f-droid.org/packages/com.shadow.blackhole/)
-
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-[<img src="https://img.shields.io/badge/GitHub-181717?logo=github&logoColor=white"
-     alt="Download from GitHub"
-     height="60">](https://github.com/Sangwan5688/BlackHole/releases)
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-[<img src="https://img.shields.io/badge/Telegram-2CA5E0?logo=telegram&logoColor=white"
-     alt="Join Telegram Channel"
-     height="60">](https://t.me/blackhole_official) -->
+     height="90">](https://f-droid.org/packages/com.shadow.blackhole/)
+[<img src="https://gitlab.com/IzzyOnDroid/repo/-/raw/master/assets/IzzyOnDroid.png"
+     alt="Get it on IzzyDroid"
+     height="90">](https://android.izzysoft.de/repo/apk/com.shadow.blackhole)
 
 ## Translations
-
+- [Turkish :tr:](/README.TR.md)
 - [Spanish :es:](/README.ES.md)
 - [Russian :ru:](/README.RU.md)
 - [French :fr:](/README.FR.md)
 - [Portuguese :brazil:](/README.PT.md)
+- [Japanese :jp:](/README.JA.md)
+- [Belarusian :belarus:](/README.BE.md)
+- [Indonesian :indonesia:](/README.ID.md)
 
 [Translate App on Weblate](https://hosted.weblate.org/projects/blackhole/translations/)
 
 ## Features
 
-- Best Streaming Quality (320kbps aac)
+- High Streaming Quality (320kbps AAC)
 - Song, Album, Artist and Playlist Search
 - Language Specific Promoted Playlists
 - Trending Songs
@@ -109,7 +112,7 @@ how to obtain the original software, should clearly STATE ALL CHANGES made and s
 Use of this software under any "non-free" license is NOT permitted.
 ```
 
-See the [GNU General Public License](https://github.com/hillarymutaik/MusicApp/blob/main/LICENSE) for more details.
+See the [GNU General Public License](https://github.com/Sangwan5688/BlackHole/blob/main/LICENSE) for more details.
 
 ## Building from Source
 
@@ -117,7 +120,7 @@ See the [GNU General Public License](https://github.com/hillarymutaik/MusicApp/b
 2. Fetch latest source code from master branch.
 
 ```
-git clone https://github.com/hillarymutaik/music_app.git
+git clone https://github.com/Sangwan5688/BlackHole.git
 ```
 
 3. Run the app with Android Studio or VS Code. Or the command line:
@@ -127,4 +130,35 @@ flutter pub get
 flutter run
 ```
 
+## Contribute
 
+Contributions are welcome. Please read our [contributing guidelines](https://github.com/Sangwan5688/BlackHole/blob/main/CONTRIBUTING.md) before contributing.
+
+## Facing any Issue?
+
+Have a look at some [common Issues](https://github.com/Sangwan5688/BlackHole/wiki/Common-Issues) that you might face. If your problem is not there, feel free to open an Issue :)
+
+## Want to test Beta Versions? Need help??
+
+You can join our [Telegram Channel](https://t.me/blackhole_official) or [Telegram Group](https://t.me/joinchat/fHDC1AWnOhw0ZmI9), if you have any query, or need help with something as well as to get beta updates of the project.
+
+## Liked my work?
+
+<a href="https://www.buymeacoffee.com/ankitsangwan" target="_blank"><img src="https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png" alt="Buy Me A Coffee" style="height: 41px !important;width: 174px !important;box-shadow: 0px 3px 2px 0px rgba(190, 190, 190, 0.5) !important;-webkit-box-shadow: 0px 3px 2px 0px rgba(190, 190, 190, 0.5) !important;" ></a>
+
+## What's New
+
+To read full changelog visit the [wiki page](https://github.com/Sangwan5688/BlackHole/wiki/Changelog)
+
+
+## Disclaimer
+```
+BlackHole does not own or have any affiliation with the songs and other content available through the app.
+All songs and other content are the property of their respective owners and are protected by copyright law.
+BlackHole is not responsible for any infringement of copyright or other intellectual property rights that may result
+from the use of the songs and other content available through the app. BlackHole uses third-party plugins and
+is not responsible for any harm or damage to the respective owners or any other parties resulting from the use
+of the songs and other content through the third-party plugins.
+By using the app, you agree to use the songs and other content only for personal, non-commercial purposes
+and in compliance with all applicable laws and regulations.
+```

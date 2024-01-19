@@ -14,14 +14,16 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with BlackHole.  If not, see <http://www.gnu.org/licenses/>.
  * 
- * Copyright (c) 2021-2022, Ankit Sangwan
+ * Copyright (c) 2021-2023, Ankit Sangwan
  */
+
+import 'dart:math';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:hive/hive.dart';
 
 class SearchBar extends StatefulWidget {
-  final bool isYt;
   final Widget body;
   final bool autofocus;
   final bool liveSearch;
@@ -29,7 +31,8 @@ class SearchBar extends StatefulWidget {
   final Widget? leading;
   final String? hintText;
   final TextEditingController controller;
-  final Function(String)? onQueryChanged;
+  final Future<List> Function(String)? onQueryChanged;
+  final Function()? onQueryCleared;
   final Function(String) onSubmitted;
   const SearchBar({
     super.key,
@@ -38,8 +41,8 @@ class SearchBar extends StatefulWidget {
     this.showClose = true,
     this.autofocus = false,
     this.onQueryChanged,
+    this.onQueryCleared,
     required this.body,
-    required this.isYt,
     required this.controller,
     required this.liveSearch,
     required this.onSubmitted,
@@ -54,6 +57,13 @@ class _SearchBarState extends State<SearchBar> {
   String query = '';
   final ValueNotifier<bool> hide = ValueNotifier<bool>(true);
   final ValueNotifier<List> suggestionsList = ValueNotifier<List>([]);
+
+  @override
+  void dispose() {
+    super.dispose();
+    hide.dispose();
+    suggestionsList.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -121,7 +131,11 @@ class _SearchBarState extends State<SearchBar> {
                                     icon: const Icon(Icons.close_rounded),
                                     onPressed: () {
                                       widget.controller.text = '';
+                                      hide.value = true;
                                       suggestionsList.value = [];
+                                      if (widget.onQueryCleared != null) {
+                                        widget.onQueryCleared!.call();
+                                      }
                                     },
                                   ),
                                 );
@@ -135,51 +149,51 @@ class _SearchBarState extends State<SearchBar> {
                     keyboardType: TextInputType.text,
                     textInputAction: TextInputAction.search,
                     onChanged: (val) {
-                      if (widget.liveSearch) {
-                        tempQuery = val;
-                        hide.value = false;
-                        if (widget.isYt) {
-                          Future.delayed(
-                            const Duration(
-                              milliseconds: 400,
-                            ),
-                            () async {
-                              if (tempQuery == val &&
-                                  tempQuery.trim() != '' &&
-                                  tempQuery != query) {
-                                query = tempQuery;
-                                suggestionsList.value =
-                                    await widget.onQueryChanged!(tempQuery)
-                                        as List;
-                              }
-                            },
-                          );
-                        } else {
-                          Future.delayed(
-                            const Duration(
-                              milliseconds: 600,
-                            ),
-                            () async {
-                              if (tempQuery == val &&
-                                  tempQuery.trim() != '' &&
-                                  tempQuery != query) {
-                                query = tempQuery;
-                                if (widget.onQueryChanged == null) {
-                                  widget.onSubmitted(tempQuery);
-                                } else {
-                                  widget.onQueryChanged!(tempQuery);
-                                }
-                              }
-                            },
-                          );
+                      tempQuery = val;
+                      if (val.trim() == '') {
+                        hide.value = true;
+                        suggestionsList.value = [];
+                        if (widget.onQueryCleared != null) {
+                          widget.onQueryCleared!.call();
                         }
+                      }
+                      if (widget.liveSearch && val.trim() != '') {
+                        hide.value = false;
+                        Future.delayed(
+                          const Duration(
+                            milliseconds: 400,
+                          ),
+                          () async {
+                            if (tempQuery == val &&
+                                tempQuery.trim() != '' &&
+                                tempQuery != query) {
+                              query = tempQuery;
+                              if (widget.onQueryChanged == null) {
+                                widget.onSubmitted(tempQuery);
+                              } else {
+                                suggestionsList.value =
+                                    await widget.onQueryChanged!(tempQuery);
+                              }
+                            }
+                          },
+                        );
                       }
                     },
                     onSubmitted: (submittedQuery) {
+                      if (!hide.value) hide.value = true;
                       if (submittedQuery.trim() != '') {
-                        query = submittedQuery;
+                        query = submittedQuery.trim();
                         widget.onSubmitted(submittedQuery);
-                        if (!hide.value) hide.value = true;
+                        List searchQueries = Hive.box('settings')
+                            .get('search', defaultValue: []) as List;
+                        if (searchQueries.contains(query)) {
+                          searchQueries.remove(query);
+                        }
+                        searchQueries.insert(0, query);
+                        if (searchQueries.length > 10) {
+                          searchQueries = searchQueries.sublist(0, 10);
+                        }
+                        Hive.box('settings').put('search', searchQueries);
                       }
                     },
                   ),
@@ -215,8 +229,10 @@ class _SearchBarState extends State<SearchBar> {
                               ),
                               elevation: 8.0,
                               child: SizedBox(
-                                height:
-                                    MediaQuery.of(context).size.height - 250.0,
+                                height: min(
+                                  MediaQuery.sizeOf(context).height / 1.75,
+                                  70.0 * suggestedList.length,
+                                ),
                                 child: ListView.builder(
                                   physics: const BouncingScrollPhysics(),
                                   padding: const EdgeInsets.only(
@@ -239,6 +255,36 @@ class _SearchBarState extends State<SearchBar> {
                                           suggestedList[index].toString(),
                                         );
                                         hide.value = true;
+                                        FocusManager.instance.primaryFocus
+                                            ?.unfocus();
+                                        List searchQueries =
+                                            Hive.box('settings').get(
+                                          'search',
+                                          defaultValue: [],
+                                        ) as List;
+                                        if (searchQueries.contains(
+                                          suggestedList[index]
+                                              .toString()
+                                              .trim(),
+                                        )) {
+                                          searchQueries.remove(
+                                            suggestedList[index]
+                                                .toString()
+                                                .trim(),
+                                          );
+                                        }
+                                        searchQueries.insert(
+                                          0,
+                                          suggestedList[index]
+                                              .toString()
+                                              .trim(),
+                                        );
+                                        if (searchQueries.length > 10) {
+                                          searchQueries =
+                                              searchQueries.sublist(0, 10);
+                                        }
+                                        Hive.box('settings')
+                                            .put('search', searchQueries);
                                       },
                                     );
                                   },

@@ -14,13 +14,14 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with BlackHole.  If not, see <http://www.gnu.org/licenses/>.
  * 
- * Copyright (c) 2021-2022, Ankit Sangwan
+ * Copyright (c) 2021-2023, Ankit Sangwan
  */
 
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:logging/logging.dart';
 
 // ignore: avoid_classes_with_only_static_members
 class Picker {
@@ -30,6 +31,7 @@ class Picker {
   }) async {
     final String? temp =
         await FilePicker.platform.getDirectoryPath(dialogTitle: message);
+    Logger.root.info('Selected folder: $temp');
     return (temp == '/' || temp == null) ? '' : temp;
   }
 

@@ -14,31 +14,31 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with BlackHole.  If not, see <http://www.gnu.org/licenses/>.
  * 
- * Copyright (c) 2021-2022, Ankit Sangwan
+ * Copyright (c) 2021-2023, Ankit Sangwan
  */
 
-import 'dart:convert';
-
+import 'package:app_links/app_links.dart';
+import 'package:blackhole/APIs/spotify_api.dart';
 import 'package:blackhole/CustomWidgets/custom_physics.dart';
+import 'package:blackhole/CustomWidgets/drawer.dart';
 import 'package:blackhole/CustomWidgets/empty_screen.dart';
+import 'package:blackhole/CustomWidgets/image_card.dart';
+import 'package:blackhole/Helpers/spotify_country.dart';
+import 'package:blackhole/Helpers/spotify_helper.dart';
 // import 'package:blackhole/Helpers/countrycodes.dart';
 import 'package:blackhole/Screens/Search/search.dart';
-// import 'package:blackhole/Screens/Settings/setting.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import 'package:flutter/foundation.dart';
+import 'package:blackhole/constants/countrycodes.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-// import 'package:html_unescape/html_unescape_small.dart';
-import 'package:http/http.dart';
+import 'package:url_launcher/url_launcher.dart';
 
-List topSongs = [];
-List viralSongs = [];
-List cachedTopSongs = [];
-List cachedViralSongs = [];
-bool fetched = false;
-bool emptyTop = false;
-bool emptyViral = false;
+List localSongs = [];
+List globalSongs = [];
+bool localFetched = false;
+bool globalFetched = false;
+final ValueNotifier<bool> localFetchFinished = ValueNotifier<bool>(false);
+final ValueNotifier<bool> globalFetchFinished = ValueNotifier<bool>(false);
 
 class TopCharts extends StatefulWidget {
   final PageController pageController;
@@ -50,45 +50,48 @@ class TopCharts extends StatefulWidget {
 
 class _TopChartsState extends State<TopCharts>
     with AutomaticKeepAliveClientMixin<TopCharts> {
+  final ValueNotifier<bool> localFetchFinished = ValueNotifier<bool>(false);
+
   @override
   bool get wantKeepAlive => true;
+
   @override
   Widget build(BuildContext cntxt) {
     super.build(context);
-    final double screenWidth = MediaQuery.of(context).size.width;
-    final bool rotated = MediaQuery.of(context).size.height < screenWidth;
+    final double screenWidth = MediaQuery.sizeOf(context).width;
+    final bool rotated = MediaQuery.sizeOf(context).height < screenWidth;
     return DefaultTabController(
       length: 2,
       child: Scaffold(
         backgroundColor: Colors.transparent,
         appBar: AppBar(
-          // actions: [
-          //   Padding(
-          //     padding: const EdgeInsets.symmetric(horizontal: 8.0),
-          //     child: IconButton(
-          //       icon: const Icon(Icons.my_location_rounded),
-          //       onPressed: () async {
-          //         await SpotifyCountry().changeCountry(context: context);
-          //       },
-          //     ),
-          //   ),
-          // ],
+          actions: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8.0),
+              child: IconButton(
+                icon: const Icon(Icons.my_location_rounded),
+                onPressed: () async {
+                  await SpotifyCountry().changeCountry(context: context);
+                },
+              ),
+            ),
+          ],
           bottom: TabBar(
             indicatorSize: TabBarIndicatorSize.label,
             tabs: [
               Tab(
                 child: Text(
-                  AppLocalizations.of(context)!.top,
+                  AppLocalizations.of(context)!.local,
                   style: TextStyle(
-                    color: Theme.of(context).textTheme.bodyText1!.color,
+                    color: Theme.of(context).textTheme.bodyLarge!.color,
                   ),
                 ),
               ),
               Tab(
                 child: Text(
-                  AppLocalizations.of(context)!.viral,
+                  AppLocalizations.of(context)!.global,
                   style: TextStyle(
-                    color: Theme.of(context).textTheme.bodyText1!.color,
+                    color: Theme.of(context).textTheme.bodyLarge!.color,
                   ),
                 ),
               ),
@@ -98,33 +101,14 @@ class _TopChartsState extends State<TopCharts>
             AppLocalizations.of(context)!.spotifyCharts,
             style: TextStyle(
               fontSize: 18,
-              color: Theme.of(context).textTheme.bodyText1!.color,
+              color: Theme.of(context).textTheme.bodyLarge!.color,
             ),
           ),
           centerTitle: true,
           backgroundColor: Colors.transparent,
           elevation: 0,
           automaticallyImplyLeading: false,
-          leading: (rotated && screenWidth < 1050)
-              ? null
-              : Builder(
-                  builder: (BuildContext context) {
-                    return Transform.rotate(
-                      angle: 22 / 7 * 2,
-                      child: IconButton(
-                        color: Theme.of(context).iconTheme.color,
-                        icon: const Icon(
-                          Icons.horizontal_split_rounded,
-                        ),
-                        onPressed: () {
-                          Scaffold.of(cntxt).openDrawer();
-                        },
-                        tooltip: MaterialLocalizations.of(cntxt)
-                            .openAppDrawerTooltip,
-                      ),
-                    );
-                  },
-                ),
+          leading: rotated ? null : homeDrawer(context: context),
         ),
         body: NotificationListener(
           onNotification: (overscroll) {
@@ -139,21 +123,19 @@ class _TopChartsState extends State<TopCharts>
             }
             return true;
           },
-          child: const TabBarView(
-            physics: CustomPhysics(),
+          child: TabBarView(
+            physics: const CustomPhysics(),
             children: [
-              // ValueListenableBuilder(
-              //   valueListenable: Hive.box('settings').listenable(),
-              //   builder: (BuildContext context, Box box, Widget? widget) {
-              //     return TopPage(
-              //       region: CountryCodes
-              //           .countryCodes[box.get('region', defaultValue: 'India')]
-              //           .toString(),
-              //     );
-              //   },
-              // ),
-              TopPage(type: 'top'),
-              TopPage(type: 'viral'),
+              ValueListenableBuilder(
+                valueListenable: Hive.box('settings').listenable(),
+                builder: (BuildContext context, Box box, Widget? widget) {
+                  return TopPage(
+                    type: box.get('region', defaultValue: 'India').toString(),
+                  );
+                },
+              ),
+              // TopPage(type: 'local'),
+              const TopPage(type: 'Global'),
             ],
           ),
         ),
@@ -162,22 +144,99 @@ class _TopChartsState extends State<TopCharts>
   }
 }
 
-Future<List> scrapData(String type) async {
-  const String authority = 'www.volt.fm';
-  const String topPath = '/charts/spotify-top';
-  const String viralPath = '/charts/spotify-viral';
-  // const String weeklyPath = '/weekly';
+Future<List> getChartDetails(String accessToken, String type) async {
+  final String globalPlaylistId = CountryCodes.localChartCodes['Global']!;
+  final String localPlaylistId = CountryCodes.localChartCodes.containsKey(type)
+      ? CountryCodes.localChartCodes[type]!
+      : CountryCodes.localChartCodes['India']!;
+  final String playlistId =
+      type == 'Global' ? globalPlaylistId : localPlaylistId;
+  final List data = [];
+  final List tracks =
+      await SpotifyApi().getAllTracksOfPlaylist(accessToken, playlistId);
+  for (final track in tracks) {
+    final trackName = track['track']['name'];
+    final imageUrlSmall = track['track']['album']['images'].last['url'];
+    final imageUrlBig = track['track']['album']['images'].first['url'];
+    final spotifyUrl = track['track']['external_urls']['spotify'];
+    final artistName = track['track']['artists'][0]['name'].toString();
+    data.add({
+      'name': trackName,
+      'artist': artistName,
+      'image_url_small': imageUrlSmall,
+      'image_url_big': imageUrlBig,
+      'spotifyUrl': spotifyUrl,
+    });
+  }
+  return data;
+}
 
-  final String unencodedPath = type == 'top' ? topPath : viralPath;
-  // if (isWeekly) unencodedPath += weeklyPath;
+Future<void> scrapData(String type, {bool signIn = false}) async {
+  final bool spotifySigned =
+      Hive.box('settings').get('spotifySigned', defaultValue: false) as bool;
 
-  final Response res = await get(Uri.https(authority, unencodedPath));
+  if (!spotifySigned && !signIn) {
+    return;
+  }
+  final String? accessToken = await retriveAccessToken();
+  if (accessToken == null) {
+    launchUrl(
+      Uri.parse(
+        SpotifyApi().requestAuthorization(),
+      ),
+      mode: LaunchMode.externalApplication,
+    );
+    final appLinks = AppLinks();
+    appLinks.allUriLinkStream.listen(
+      (uri) async {
+        final link = uri.toString();
+        if (link.contains('code=')) {
+          final code = link.split('code=')[1];
+          Hive.box('settings').put('spotifyAppCode', code);
+          final currentTime = DateTime.now().millisecondsSinceEpoch / 1000;
+          final List<String> data =
+              await SpotifyApi().getAccessToken(code: code);
+          if (data.isNotEmpty) {
+            Hive.box('settings').put('spotifyAccessToken', data[0]);
+            Hive.box('settings').put('spotifyRefreshToken', data[1]);
+            Hive.box('settings').put('spotifySigned', true);
+            Hive.box('settings')
+                .put('spotifyTokenExpireAt', currentTime + int.parse(data[2]));
+          }
 
-  if (res.statusCode != 200) return List.empty();
-  final result = RegExp(r'<script.*>({\"context\".*})<\/script>', dotAll: true)
-      .firstMatch(res.body)![1]!;
-  final Map data = json.decode(result) as Map;
-  return data['chart_ranking']['tracks'] as List;
+          final temp = await getChartDetails(data[0], type);
+          if (temp.isNotEmpty) {
+            Hive.box('cache').put('${type}_chart', temp);
+            if (type == 'Global') {
+              globalSongs = temp;
+            } else {
+              localSongs = temp;
+            }
+          }
+          if (type == 'Global') {
+            globalFetchFinished.value = true;
+          } else {
+            localFetchFinished.value = true;
+          }
+        }
+      },
+    );
+  } else {
+    final temp = await getChartDetails(accessToken, type);
+    if (temp.isNotEmpty) {
+      Hive.box('cache').put('${type}_chart', temp);
+      if (type == 'Global') {
+        globalSongs = temp;
+      } else {
+        localSongs = temp;
+      }
+    }
+    if (type == 'Global') {
+      globalFetchFinished.value = true;
+    } else {
+      localFetchFinished.value = true;
+    }
+  }
 }
 
 class TopPage extends StatefulWidget {
@@ -189,36 +248,18 @@ class TopPage extends StatefulWidget {
 
 class _TopPageState extends State<TopPage>
     with AutomaticKeepAliveClientMixin<TopPage> {
-  Future<void> getData(String type) async {
-    fetched = true;
-    final List temp = await compute(scrapData, type);
-    setState(() {
-      if (type == 'top') {
-        topSongs = temp;
-        if (topSongs.isNotEmpty) {
-          cachedTopSongs = topSongs;
-          Hive.box('cache').put(type, topSongs);
-        }
-        emptyTop = topSongs.isEmpty && cachedTopSongs.isEmpty;
-      } else {
-        viralSongs = temp;
-        if (viralSongs.isNotEmpty) {
-          cachedViralSongs = viralSongs;
-          Hive.box('cache').put(type, viralSongs);
-        }
-        emptyViral = viralSongs.isEmpty && cachedViralSongs.isEmpty;
-      }
-    });
-  }
-
   Future<void> getCachedData(String type) async {
-    fetched = true;
-    if (type == 'top') {
-      cachedTopSongs =
-          await Hive.box('cache').get(type, defaultValue: []) as List;
+    if (type == 'Global') {
+      globalFetched = true;
     } else {
-      cachedViralSongs =
-          await Hive.box('cache').get(type, defaultValue: []) as List;
+      localFetched = true;
+    }
+    if (type == 'Global') {
+      globalSongs = await Hive.box('cache')
+          .get('${type}_chart', defaultValue: []) as List;
+    } else {
+      localSongs = await Hive.box('cache')
+          .get('${type}_chart', defaultValue: []) as List;
     }
     setState(() {});
   }
@@ -229,111 +270,130 @@ class _TopPageState extends State<TopPage>
   @override
   void initState() {
     super.initState();
-    if (widget.type == 'top' && topSongs.isEmpty) {
-      getCachedData(widget.type);
-      getData(widget.type);
-    } else {
-      if (viralSongs.isEmpty) {
-        getCachedData(widget.type);
-        getData(widget.type);
-      }
-    }
+    getCachedData(widget.type);
+    scrapData(widget.type);
   }
 
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    final bool isTop = widget.type == 'top';
-    if (!fetched) {
+    final bool isGlobal = widget.type == 'Global';
+    if ((isGlobal && !globalFetched) || (!isGlobal && !localFetched)) {
       getCachedData(widget.type);
-      getData(widget.type);
+      scrapData(widget.type);
     }
-    final List showList = isTop ? cachedTopSongs : cachedViralSongs;
-    final bool isListEmpty = isTop ? emptyTop : emptyViral;
-    return Column(
-      children: [
-        if (showList.length <= 10)
-          Expanded(
-            child: isListEmpty
-                ? emptyScreen(
-                    context,
-                    0,
-                    ':( ',
-                    100,
-                    'ERROR',
-                    60,
-                    'Service Unavailable',
-                    20,
-                  )
-                : Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: const [
-                      CircularProgressIndicator(),
-                    ],
-                  ),
-          )
-        else
-          Expanded(
-            child: ListView.builder(
-              physics: const BouncingScrollPhysics(),
-              itemCount: showList.length,
-              itemExtent: 70.0,
-              itemBuilder: (context, index) {
-                return ListTile(
-                  leading: Card(
-                    elevation: 5,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(7.0),
+    return ValueListenableBuilder(
+      valueListenable: isGlobal ? globalFetchFinished : localFetchFinished,
+      builder: (BuildContext context, bool value, Widget? child) {
+        final List showList = isGlobal ? globalSongs : localSongs;
+        return Column(
+          children: [
+            if (!(Hive.box('settings').get('spotifySigned', defaultValue: false)
+                as bool))
+              Expanded(
+                child: Center(
+                  child: TextButton(
+                    onPressed: () {
+                      scrapData(widget.type, signIn: true);
+                    },
+                    style: TextButton.styleFrom(
+                      backgroundColor: Theme.of(context).colorScheme.secondary,
+                      foregroundColor: Colors.black,
                     ),
-                    clipBehavior: Clip.antiAlias,
-                    child: Stack(
-                      children: [
-                        const Image(
-                          image: AssetImage('assets/cover.jpg'),
+                    child: Text(AppLocalizations.of(context)!.signInSpotify),
+                  ),
+                ),
+              )
+            else if (showList.isEmpty)
+              Expanded(
+                child: value
+                    ? emptyScreen(
+                        context,
+                        0,
+                        ':( ',
+                        100,
+                        'ERROR',
+                        60,
+                        'Service Unavailable',
+                        20,
+                      )
+                    : const Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          CircularProgressIndicator(),
+                        ],
+                      ),
+              )
+            else
+              Expanded(
+                child: ListView.builder(
+                  physics: const BouncingScrollPhysics(),
+                  itemCount: showList.length,
+                  itemExtent: 70.0,
+                  itemBuilder: (context, index) {
+                    return ListTile(
+                      leading: imageCard(
+                        imageUrl: showList[index]['image_url_small'].toString(),
+                      ),
+                      title: Text(
+                        '${index + 1}. ${showList[index]["name"]}',
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      subtitle: Text(
+                        showList[index]['artist'].toString(),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      trailing: PopupMenuButton(
+                        icon: const Icon(Icons.more_vert_rounded),
+                        shape: const RoundedRectangleBorder(
+                          borderRadius: BorderRadius.all(
+                            Radius.circular(15.0),
+                          ),
                         ),
-                        if (showList[index]['image_url_small'] != '')
-                          CachedNetworkImage(
-                            fit: BoxFit.cover,
-                            imageUrl:
-                                showList[index]['image_url_small'].toString(),
-                            errorWidget: (context, _, __) => const Image(
-                              fit: BoxFit.cover,
-                              image: AssetImage('assets/cover.jpg'),
-                            ),
-                            placeholder: (context, url) => const Image(
-                              fit: BoxFit.cover,
-                              image: AssetImage('assets/cover.jpg'),
+                        onSelected: (int? value) async {
+                          if (value == 0) {
+                            await launchUrl(
+                              Uri.parse(
+                                showList[index]['spotifyUrl'].toString(),
+                              ),
+                              mode: LaunchMode.externalApplication,
+                            );
+                          }
+                        },
+                        itemBuilder: (context) => [
+                          PopupMenuItem(
+                            value: 0,
+                            child: Row(
+                              children: [
+                                const Icon(Icons.open_in_new_rounded),
+                                const SizedBox(width: 10.0),
+                                Text(
+                                  AppLocalizations.of(context)!.openInSpotify,
+                                ),
+                              ],
                             ),
                           ),
-                      ],
-                    ),
-                  ),
-                  title: Text(
-                    '${index + 1}. ${showList[index]["name"]}',
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  subtitle: Text(
-                    (showList[index]['artists'] as List)
-                        .map((e) => e['name'])
-                        .toList()
-                        .join(', '),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => SearchPage(
-                          query: showList[index]['name'].toString(),
-                        ),
+                        ],
                       ),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => SearchPage(
+                              query:
+                                  '${showList[index]["name"]} - ${showList[index]["artist"]}',
+                              fromDirectSearch: true,
+                            ),
+                          ),
+                        );
+                      },
                     );
                   },
-                );
-              },
-            ),
-          ),
-      ],
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
 }

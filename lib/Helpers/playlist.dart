@@ -14,7 +14,7 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with BlackHole.  If not, see <http://www.gnu.org/licenses/>.
  * 
- * Copyright (c) 2021-2022, Ankit Sangwan
+ * Copyright (c) 2021-2023, Ankit Sangwan
  */
 
 import 'package:audio_service/audio_service.dart';
@@ -68,17 +68,6 @@ Future<void> addPlaylist(String inputName, List data) async {
   final RegExp avoid = RegExp(r'[\.\\\*\:\"\?#/;\|]');
   String name = inputName.replaceAll(avoid, '').replaceAll('  ', ' ');
 
-  await Hive.openBox(name);
-  final Box playlistBox = Hive.box(name);
-
-  songs_count.addSongsCount(
-    name,
-    data.length,
-    data.length >= 4 ? data.sublist(0, 4) : data.sublist(0, data.length),
-  );
-  final Map result = {for (var v in data) v['id'].toString(): v};
-  playlistBox.putAll(result);
-
   final List playlistNames =
       Hive.box('settings').get('playlistNames', defaultValue: []) as List;
 
@@ -89,6 +78,18 @@ Future<void> addPlaylist(String inputName, List data) async {
     // ignore: use_string_buffers
     name += ' (1)';
   }
+
+  await Hive.openBox(name);
+  final Box playlistBox = Hive.box(name);
+
+  songs_count.addSongsCount(
+    name,
+    data.length,
+    data.length >= 4 ? data.sublist(0, 4) : data.sublist(0, data.length),
+  );
+  final Map result = {for (final v in data) v['id'].toString(): v};
+  playlistBox.putAll(result);
+
   playlistNames.add(name);
   Hive.box('settings').put('playlistNames', playlistNames);
 }

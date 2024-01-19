@@ -14,7 +14,7 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with BlackHole.  If not, see <http://www.gnu.org/licenses/>.
  * 
- * Copyright (c) 2021-2022, Ankit Sangwan
+ * Copyright (c) 2021-2023, Ankit Sangwan
  */
 
 import 'package:blackhole/Helpers/config.dart';
@@ -33,7 +33,8 @@ class _GradientContainerState extends State<GradientContainer> {
   MyTheme currentTheme = GetIt.I<MyTheme>();
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
+    // ignore: use_decorated_box
+    return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -99,10 +100,20 @@ class GradientCard extends StatefulWidget {
   final Widget child;
   final BorderRadius? radius;
   final double? elevation;
+  final EdgeInsetsGeometry? margin;
+  final EdgeInsetsGeometry? padding;
+  final List<Color>? gradientColors;
+  final AlignmentGeometry? gradientBegin;
+  final AlignmentGeometry? gradientEnd;
   const GradientCard({
     required this.child,
     this.radius,
     this.elevation,
+    this.margin,
+    this.padding,
+    this.gradientColors,
+    this.gradientBegin,
+    this.gradientEnd,
   });
   @override
   _GradientCardState createState() => _GradientCardState();
@@ -118,22 +129,29 @@ class _GradientCardState extends State<GradientCard> {
         borderRadius: widget.radius ?? BorderRadius.circular(10.0),
       ),
       clipBehavior: Clip.antiAlias,
-      margin: EdgeInsets.zero,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: Theme.of(context).brightness == Brightness.dark
-                ? currentTheme.getCardGradient()
-                : [
-                    Colors.white,
-                    Theme.of(context).canvasColor,
-                  ],
-          ),
-        ),
-        child: widget.child,
-      ),
+      margin: widget.margin ?? EdgeInsets.zero,
+      color: Colors.transparent,
+      child: widget.elevation == 0
+          ? widget.child
+          : DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: widget.gradientBegin ?? Alignment.topLeft,
+                  end: widget.gradientEnd ?? Alignment.bottomRight,
+                  colors: widget.gradientColors ??
+                      (Theme.of(context).brightness == Brightness.dark
+                          ? currentTheme.getCardGradient()
+                          : [
+                              Colors.white,
+                              Theme.of(context).canvasColor,
+                            ]),
+                ),
+              ),
+              child: Padding(
+                padding: widget.padding ?? EdgeInsets.zero,
+                child: widget.child,
+              ),
+            ),
     );
   }
 }

@@ -14,7 +14,7 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with BlackHole.  If not, see <http://www.gnu.org/licenses/>.
  * 
- * Copyright (c) 2021-2022, Ankit Sangwan
+ * Copyright (c) 2021-2023, Ankit Sangwan
  */
 
 import 'dart:io';
@@ -38,7 +38,10 @@ class ExtStorageProvider {
   }
 
   // getting external storage path
-  static Future<String?> getExtStorage({required String dirName}) async {
+  static Future<String?> getExtStorage({
+    required String dirName,
+    required bool writeAccess,
+  }) async {
     Directory? directory;
 
     try {
@@ -63,6 +66,9 @@ class ExtStorageProvider {
           }
           if (await directory.exists()) {
             try {
+              if (writeAccess) {
+                await requestPermission(Permission.manageExternalStorage);
+              }
               // if directory exists then returning the complete path
               return newPath;
             } catch (e) {
@@ -72,12 +78,13 @@ class ExtStorageProvider {
         } else {
           return throw 'something went wrong';
         }
-      } else if (Platform.isIOS) {
+      } else if (Platform.isIOS || Platform.isMacOS) {
         directory = await getApplicationDocumentsDirectory();
-        return directory.path;
+        final finalDirName = dirName.replaceAll('BlackHole/', '');
+        return '${directory.path}/$finalDirName';
       } else {
         directory = await getDownloadsDirectory();
-        return directory!.path;
+        return '${directory!.path}/$dirName';
       }
     } catch (e) {
       rethrow;

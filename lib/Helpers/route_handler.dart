@@ -14,20 +14,42 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with BlackHole.  If not, see <http://www.gnu.org/licenses/>.
  * 
- * Copyright (c) 2021-2022, Ankit Sangwan
+ * Copyright (c) 2021-2023, Ankit Sangwan
  */
 
 import 'package:blackhole/APIs/api.dart';
+import 'package:blackhole/APIs/spotify_api.dart';
 import 'package:blackhole/Helpers/audio_query.dart';
+import 'package:blackhole/Helpers/spotify_helper.dart';
 import 'package:blackhole/Screens/Common/song_list.dart';
 import 'package:blackhole/Screens/Player/audioplayer.dart';
+import 'package:blackhole/Screens/Search/search.dart';
+import 'package:blackhole/Screens/YouTube/youtube_playlist.dart';
+import 'package:blackhole/Services/player_service.dart';
+import 'package:blackhole/Services/youtube_services.dart';
 import 'package:flutter/material.dart';
+import 'package:logging/logging.dart';
 import 'package:on_audio_query/on_audio_query.dart';
 
 // ignore: avoid_classes_with_only_static_members
 class HandleRoute {
   static Route? handleRoute(String? url) {
+    Logger.root.info('received route url: $url');
     if (url == null) return null;
+    // blackhole specific url
+    // blackhole://blackhole/search?q=stay+with+me
+    if (url.startsWith('/search')) {
+      final uri = Uri.parse(url);
+      final query = uri.queryParameters['q'];
+      if (query != null) {
+        return PageRouteBuilder(
+          pageBuilder: (_, __, ___) => SearchPage(
+            query: query,
+            fromDirectSearch: true,
+          ),
+        );
+      }
+    }
     if (url.contains('saavn')) {
       final RegExpMatch? songResult =
           RegExp(r'.*saavn.com.*?\/(song)\/.*?\/(.*)').firstMatch('$url?');
@@ -55,21 +77,31 @@ class HandleRoute {
       }
     } else if (url.contains('spotify')) {
       // TODO: Add support for spotify links
-      // print('it is a spotify link');
-    } else if (url.contains('youtube')) {
+      Logger.root.info('received spotify link');
+      final RegExpMatch? songResult =
+          RegExp(r'.*spotify.com.*?\/(track)\/(.*?)[/?]').firstMatch('$url/');
+      if (songResult != null) {
+        return PageRouteBuilder(
+          opaque: false,
+          pageBuilder: (_, __, ___) => SpotifyUrlHandler(
+            id: songResult[2]!,
+            type: songResult[1]!,
+          ),
+        );
+      }
+    } else if (url.contains('youtube') || url.contains('youtu.be')) {
       // TODO: Add support for youtube links
-      // print('it is an youtube link');
+      Logger.root.info('received youtube link');
       final RegExpMatch? videoId =
-          RegExp(r'.*\.com\/watch\?v=(.*)\?').firstMatch('$url?');
+          RegExp(r'.*[\?\/](v|list)[=\/](.*?)[\/\?&#]').firstMatch('$url/');
       if (videoId != null) {
-        // TODO: Extract audio data and play audio
-        // return PageRouteBuilder(
-        //   opaque: false,
-        //   pageBuilder: (_, __, ___) => YtUrlHandler(
-        //     id: songResult[1]!,
-        //     type: song,
-        //   ),
-        // );
+        return PageRouteBuilder(
+          opaque: false,
+          pageBuilder: (_, __, ___) => YtUrlHandler(
+            id: videoId[2]!,
+            type: videoId[1]!,
+          ),
+        );
       }
     } else {
       final RegExpMatch? fileResult =
@@ -96,18 +128,16 @@ class SaavnUrlHandler extends StatelessWidget {
   Widget build(BuildContext context) {
     SaavnAPI().getSongFromToken(token, type).then((value) {
       if (type == 'song') {
+        PlayerInvoke.init(
+          songsList: value['songs'] as List,
+          index: 0,
+          isOffline: false,
+        );
         Navigator.pushReplacement(
           context,
           PageRouteBuilder(
             opaque: false,
-            pageBuilder: (_, __, ___) => PlayScreen(
-              songsList: value['songs'] as List,
-              index: 0,
-              offline: false,
-              fromDownloads: false,
-              recommend: true,
-              fromMiniplayer: false,
-            ),
+            pageBuilder: (_, __, ___) => const PlayScreen(),
           ),
         );
       }
@@ -124,6 +154,84 @@ class SaavnUrlHandler extends StatelessWidget {
       }
     });
     return Container();
+  }
+}
+
+class SpotifyUrlHandler extends StatelessWidget {
+  final String id;
+  final String type;
+  const SpotifyUrlHandler({super.key, required this.id, required this.type});
+
+  @override
+  Widget build(BuildContext context) {
+    if (type == 'track') {
+      callSpotifyFunction(
+        function: (String accessToken) {
+          SpotifyApi().getTrackDetails(accessToken, id).then((value) {
+            Navigator.pushReplacement(
+              context,
+              PageRouteBuilder(
+                opaque: false,
+                pageBuilder: (_, __, ___) => SearchPage(
+                  query: (value['artists'] != null &&
+                          (value['artists'] as List).isNotEmpty)
+                      ? '${value["name"]} by ${value["artists"][0]["name"]}'
+                      : value['name'].toString(),
+                ),
+              ),
+            );
+          });
+        },
+      );
+    }
+    return Container();
+  }
+}
+
+class YtUrlHandler extends StatelessWidget {
+  final String id;
+  final String type;
+  const YtUrlHandler({super.key, required this.id, required this.type});
+
+  @override
+  Widget build(BuildContext context) {
+    if (type == 'v') {
+      YouTubeServices.instance
+          .formatVideoFromId(id: id)
+          .then((Map? response) async {
+        if (response != null) {
+          PlayerInvoke.init(
+            songsList: [response],
+            index: 0,
+            isOffline: false,
+            recommend: false,
+          );
+        }
+        Navigator.pushReplacement(
+          context,
+          PageRouteBuilder(
+            opaque: false,
+            pageBuilder: (_, __, ___) => const PlayScreen(),
+          ),
+        );
+      });
+    } else if (type == 'list') {
+      Future.delayed(const Duration(milliseconds: 500), () {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => YouTubePlaylist(
+              playlistId: id,
+              // playlistImage: '',
+              // playlistName: '',
+              // playlistSubtitle: '',
+              // playlistSecondarySubtitle: '',
+            ),
+          ),
+        );
+      });
+    }
+    return const SizedBox();
   }
 }
 
@@ -144,21 +252,20 @@ class OfflinePlayHandler extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     playOfflineSong(id).then((value) {
+      PlayerInvoke.init(
+        songsList: value[1] as List<SongModel>,
+        index: value[0] as int,
+        isOffline: true,
+        recommend: false,
+      );
       Navigator.pushReplacement(
         context,
         PageRouteBuilder(
           opaque: false,
-          pageBuilder: (_, __, ___) => PlayScreen(
-            songsList: value[1] as List<SongModel>,
-            index: value[0] as int,
-            offline: true,
-            fromDownloads: false,
-            recommend: false,
-            fromMiniplayer: false,
-          ),
+          pageBuilder: (_, __, ___) => const PlayScreen(),
         ),
       );
     });
-    return Container();
+    return const SizedBox();
   }
 }
